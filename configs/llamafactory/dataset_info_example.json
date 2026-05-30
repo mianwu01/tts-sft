@@ -1,0 +1,33 @@
+{
+  "_comment_1": "Copy these two entries into external/LLaMA-Factory/data/dataset_info.json (merge with whatever is already there).",
+  "_comment_2": "file_name is resolved relative to LLaMA-Factory's data/ directory. Either drop the exported files in there, or set file_name to an absolute path.",
+  "_comment_3": "The mapping under columns + tags tells LLaMA-Factory how to read our ShareGPT-formatted output.",
+
+  "raw_self_sft": {
+    "file_name": "raw_self_sft_llamafactory.json",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations"
+    },
+    "tags": {
+      "role_tag": "from",
+      "content_tag": "value",
+      "user_tag": "human",
+      "assistant_tag": "gpt"
+    }
+  },
+
+  "squeeze_evolve_sft": {
+    "file_name": "squeeze_evolve_sft_llamafactory.json",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations"
+    },
+    "tags": {
+      "role_tag": "from",
+      "content_tag": "value",
+      "user_tag": "human",
+      "assistant_tag": "gpt"
+    }
+  }
+}

@@ -1,0 +1,51 @@
+# Stage 1/3 — smoke test
+#
+# Purpose: verify that the SFT loop runs end-to-end (model loads, LoRA
+# attaches, one optimizer step completes, adapter saves). This config is
+# tuned to be cheap, not to produce a competitive checkpoint.
+#
+# Use it like:
+#   python scripts/train_sft.py \
+#       --config configs/sft_qwen3_4b_lora_smoke.yaml \
+#       --train-file data/sft/raw_self_sft_train.jsonl \
+#       --output-dir outputs/smoke_raw \
+#       --max-steps 20
+#
+# CLI flags override anything here.
+
+model_name_or_path: Qwen/Qwen3-4B-Thinking-2507
+
+use_lora: true
+bf16: true
+max_seq_length: 8192
+
+learning_rate: 5.0e-6
+num_train_epochs: 1
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 8     # effective batch = 8 on 1 GPU
+
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0.05
+target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+
+gradient_checkpointing: true
+warmup_ratio: 0.03
+weight_decay: 0.0
+max_grad_norm: 0.2
+lr_scheduler_type: cosine
+
+adam_beta1: 0.9
+adam_beta2: 0.999
+
+logging_steps: 1
+save_steps: 50
+seed: 42
+report_to: none

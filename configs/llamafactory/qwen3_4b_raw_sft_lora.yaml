@@ -1,0 +1,44 @@
+# LLaMA-Factory recipe: LoRA SFT on the raw self-generated dataset.
+#
+# Effective batch = per_device_train_batch_size * gradient_accumulation_steps * world_size
+#                 = 1 * 64 * 1 = 64 on a single GPU.
+# For multi-GPU, lower gradient_accumulation_steps so the product stays
+# at 64 (e.g. 8 GPUs -> gradient_accumulation_steps: 8).
+#
+# This file MUST stay identical to qwen3_4b_se_sft_lora.yaml except for
+# `dataset` and `output_dir`. Diff them before launching either run.
+
+# --- Model / stage --------------------------------------------------------
+model_name_or_path: Qwen/Qwen3-4B-Thinking-2507
+stage: sft
+do_train: true
+finetuning_type: lora
+template: qwen3
+
+# --- Data -----------------------------------------------------------------
+dataset: raw_self_sft            # entry in LLaMA-Factory's data/dataset_info.json
+cutoff_len: 8192
+
+# --- Optimizer / schedule -------------------------------------------------
+learning_rate: 2.0e-5
+num_train_epochs: 1.0
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 64
+lr_scheduler_type: cosine
+warmup_ratio: 0.03
+weight_decay: 0.0
+max_grad_norm: 0.2
+
+# --- Precision / logging --------------------------------------------------
+bf16: true
+logging_steps: 10
+save_steps: 200
+plot_loss: true
+overwrite_output_dir: true
+output_dir: saves/qwen3_4b_raw_sft_lora
+
+# --- LoRA -----------------------------------------------------------------
+lora_rank: 32
+lora_alpha: 64
+lora_dropout: 0.05
+lora_target: all

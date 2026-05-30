@@ -1,0 +1,61 @@
+# Stage 3/3 — paper-aligned full fine-tune
+#
+# Purpose: production run with hyperparameters inspired by Percy's SVD
+# Qwen3-4B math recipe. Full fine-tuning by default; flip use_lora: true
+# (or pass --use-lora on the CLI) if full FT does not fit your hardware.
+#
+# Effective batch size = 64 (per_device * grad_accum * world_size).
+# Tune `per_device_train_batch_size` and `gradient_accumulation_steps` to
+# preserve that product on your specific cluster. Examples for 8xH100:
+#
+#   per_device_train_batch_size: 1, gradient_accumulation_steps: 8
+#   per_device_train_batch_size: 2, gradient_accumulation_steps: 4
+#
+# Sequence length 32768 is intentional and matches the paper recipe;
+# Qwen3-4B-Thinking-2507 supports up to 262144. With bf16 + gradient
+# checkpointing, 32k usually needs FSDP or DeepSpeed ZeRO-3 on 8x80GB.
+#
+# Chat template: Qwen3's tokenizer ships with the correct template
+# (system / user / assistant + <think>...</think> support). The trainer
+# uses it automatically — no manual override here.
+
+model_name_or_path: Qwen/Qwen3-4B-Thinking-2507
+
+use_lora: false               # set true (or pass --use-lora) if full FT is too expensive
+bf16: true
+max_seq_length: 32768
+
+# Step-pinned schedule (overrides num_train_epochs at runtime).
+max_steps: 4000
+num_train_epochs: 1           # ignored when max_steps > 0; kept as a fallback
+
+learning_rate: 2.0e-5
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 64   # 1 * 64 * 1 GPU = 64 effective batch
+
+warmup_ratio: 0.03
+weight_decay: 0.0
+max_grad_norm: 0.2
+lr_scheduler_type: cosine
+
+adam_beta1: 0.9
+adam_beta2: 0.999
+
+# LoRA params used only if use_lora is flipped to true.
+lora_r: 32
+lora_alpha: 64
+lora_dropout: 0.05
+target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+
+gradient_checkpointing: true
+logging_steps: 10
+save_steps: 500
+seed: 42
+report_to: none

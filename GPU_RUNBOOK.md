@@ -118,46 +118,86 @@ python scripts/convert_se_to_sft.py \
 Both produce `{id, messages: [user, assistant], source}` records.
 `<think>...</think>` blocks are preserved verbatim — do not strip them.
 
-## 7. Train Raw-SFT
+## 7. Pick an SFT preset
+
+Three configs live in `configs/`. Pass one via `--config`; CLI flags
+override its keys.
+
+| Preset file | Stage | Highlights |
+|---|---|---|
+| `sft_qwen3_4b_lora_smoke.yaml` | 1. Smoke | LoRA r=16/α=32, lr=5e-6, grad-accum 8, max-seq 8192. Pair with `--max-steps 20` for a one-minute liveness check. |
+| `sft_qwen3_4b_lora_quick.yaml` | 2. Quick real | LoRA r=32/α=64, lr=2e-5, **effective batch 64**, max-seq 8192 (bump to 16384 if memory permits). |
+| `sft_qwen3_4b_paper_aligned.yaml` | 3. Paper-aligned | Full fine-tune (LoRA toggle available), lr=2e-5, max_steps=4000, max-seq 32768, effective batch 64. |
+
+All three share `lr_scheduler_type: cosine`, `warmup_ratio: 0.03`,
+`weight_decay: 0.0`, `max_grad_norm: 0.2`, `adam_beta1: 0.9`,
+`adam_beta2: 0.999`, `seed: 42`, `bf16: true`. Qwen3's built-in chat
+template (with `<think>...</think>` support) is applied automatically
+by the tokenizer — we never strip thinking blocks.
+
+**Effective batch size = `per_device_train_batch_size × gradient_accumulation_steps × world_size`.**
+The configs assume 1 GPU. Keep the product at 64 (quick / paper presets)
+when you scale out:
+
+| GPUs | `per_device_train_batch_size` | `gradient_accumulation_steps` |
+|---:|---:|---:|
+| 1 | 1 | 64 |
+| 2 | 1 | 32 |
+| 4 | 1 | 16 |
+| 8 | 1 | 8 |
+
+Override on the CLI, e.g. `--gradient-accumulation-steps 8` for 8 GPUs.
+
+### One iron rule
+
+**Raw self-SFT and SqueezeEvolve-SFT must use the exact same preset and
+exact same CLI overrides.** The only allowed differences are
+`--train-file` and `--output-dir`. If you change a hyperparameter for
+one of them, you must rerun both — otherwise the comparison no longer
+isolates the training data.
+
+## 8. Train Raw-SFT and SqueezeEvolve-SFT (quick preset)
+
+The "quick" preset is the recommended starting point for the headline
+experiment. Single GPU:
 
 ```bash
+# Raw self-SFT
 python scripts/train_sft.py \
-    --model-name-or-path Qwen/Qwen3-4B-Thinking-2507 \
+    --config configs/sft_qwen3_4b_lora_quick.yaml \
+    --train-file data/sft/raw_self_sft_train.jsonl \
+    --output-dir outputs/qwen3_4b_raw_sft
+
+# SqueezeEvolve-SFT — same config, only data + output dir change
+python scripts/train_sft.py \
+    --config configs/sft_qwen3_4b_lora_quick.yaml \
+    --train-file data/sft/squeeze_evolve_sft_train.jsonl \
+    --output-dir outputs/qwen3_4b_se_sft
+```
+
+8×H100 (drop grad-accum to 8 so effective batch stays at 64):
+
+```bash
+accelerate launch --num_processes 8 scripts/train_sft.py \
+    --config configs/sft_qwen3_4b_lora_quick.yaml \
     --train-file data/sft/raw_self_sft_train.jsonl \
     --output-dir outputs/qwen3_4b_raw_sft \
-    --use-lora --bf16 \
-    --max-seq-length 8192 \
-    --learning-rate 5e-6 \
-    --num-train-epochs 1 \
-    --per-device-train-batch-size 1 \
-    --gradient-accumulation-steps 16 \
-    --lora-r 16 --lora-alpha 32 --lora-dropout 0.05 \
-    --gradient-checkpointing
-```
+    --gradient-accumulation-steps 8
 
-For multi-GPU runs, prefix with `accelerate launch` after
-`accelerate config` (or use `torchrun --nproc_per_node 8` if you prefer).
-`training_metadata.json` is written next to the adapter on completion.
-
-## 8. Train SqueezeEvolve-SFT
-
-Identical hyperparameters to step 7 — only the train file and output
-directory change. That isolation is the whole point of the experiment.
-
-```bash
-python scripts/train_sft.py \
-    --model-name-or-path Qwen/Qwen3-4B-Thinking-2507 \
+accelerate launch --num_processes 8 scripts/train_sft.py \
+    --config configs/sft_qwen3_4b_lora_quick.yaml \
     --train-file data/sft/squeeze_evolve_sft_train.jsonl \
     --output-dir outputs/qwen3_4b_se_sft \
-    --use-lora --bf16 \
-    --max-seq-length 8192 \
-    --learning-rate 5e-6 \
-    --num-train-epochs 1 \
-    --per-device-train-batch-size 1 \
-    --gradient-accumulation-steps 16 \
-    --lora-r 16 --lora-alpha 32 --lora-dropout 0.05 \
-    --gradient-checkpointing
+    --gradient-accumulation-steps 8
 ```
+
+For the **smoke** preset, swap `--config` and add `--max-steps 20`. For
+the **paper-aligned** preset, swap `--config`; full fine-tuning at
+max-seq 32768 generally needs FSDP or DeepSpeed ZeRO-3 — see
+`accelerate config` and Hugging Face's
+[FSDP docs](https://huggingface.co/docs/accelerate/usage_guides/fsdp).
+`training_metadata.json` is written next to every checkpoint on
+completion.
 
 ## 9. Evaluate Base / Raw-SFT / SqueezeEvolve-SFT
 

@@ -1,0 +1,44 @@
+# LLaMA-Factory smoke-test recipe.
+#
+# Purpose: verify that LLaMA-Factory loads the model, attaches LoRA,
+# applies the qwen3 template, runs one forward/backward, and saves a
+# checkpoint. Hyperparameters are deliberately tiny — do not use this
+# for the actual experiment.
+#
+# Run it with --max_steps 20 (CLI flag to llamafactory-cli) for a
+# one-minute liveness check.
+
+# --- Model / stage --------------------------------------------------------
+model_name_or_path: Qwen/Qwen3-4B-Thinking-2507
+stage: sft
+do_train: true
+finetuning_type: lora
+template: qwen3
+
+# --- Data -----------------------------------------------------------------
+dataset: raw_self_sft             # pick either dataset; smoke just needs *some* SFT data
+cutoff_len: 8192
+
+# --- Optimizer / schedule -------------------------------------------------
+learning_rate: 5.0e-6
+num_train_epochs: 1.0
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 8
+lr_scheduler_type: cosine
+warmup_ratio: 0.03
+weight_decay: 0.0
+max_grad_norm: 0.2
+
+# --- Precision / logging --------------------------------------------------
+bf16: true
+logging_steps: 1
+save_steps: 50
+plot_loss: true
+overwrite_output_dir: true
+output_dir: saves/qwen3_4b_sft_smoke
+
+# --- LoRA -----------------------------------------------------------------
+lora_rank: 16
+lora_alpha: 32
+lora_dropout: 0.05
+lora_target: all
