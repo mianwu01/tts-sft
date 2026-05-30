@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Editors / IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Test / tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Data, models, generated outputs (keep .gitkeep)
+data/generated/*
+!data/generated/.gitkeep
+data/sft/*
+!data/sft/.gitkeep
+data/results/*
+!data/results/.gitkeep
+outputs/*
+checkpoints/
+wandb/
+
+# Stray run artifacts
+*.raw.json
+*.log
+
+# External clones — committed only as a pointer dir
+external/*
+!external/README.md
+!external/.gitkeep
+
+# Local secrets / env overrides
+.env
+.env.*

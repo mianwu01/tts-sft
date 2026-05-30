@@ -1,0 +1,16 @@
+# Defaults for scripts/run_raw_generation.py.
+input: data/seeds/math_seed.jsonl
+output: data/generated/raw_generations.jsonl
+
+model: Qwen/Qwen3-4B-Thinking-2507
+base_url: http://localhost:8000/v1
+api_key: EMPTY
+
+temperature: 0.6
+top_p: 0.95
+max_tokens: 8192
+seed: null
+system_prompt: null
+
+# Resume behavior: existing ids in `output` are skipped automatically.
+# Pass --overwrite on the CLI to start fresh.

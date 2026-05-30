@@ -1,0 +1,53 @@
+# Squeeze-Evolve run config for math self-distillation.
+#
+# This file matches the schema enforced by squeeze_evolve.core.config.RunConfig
+# (Pydantic). See external/squeeze-evolve/README.md and benchmarks/aime25/
+# configs/example.yaml for reference.
+#
+# Defaults below assume:
+#   * single model: Qwen/Qwen3-4B-Thinking-2507 (self-distillation)
+#   * served on a stock local vLLM at http://localhost:8000/v1
+#   * fitness: diversity — no prompt_logprobs / vllm_extensions needed
+#
+# Override model name / endpoint via the wrapper:
+#     python scripts/run_squeeze_evolve.py ... --model X --base-url Y --api-key Z
+
+run_name: tts_sft_se
+
+routing:
+  k: 4                              # group size
+  population: 4                     # candidates per problem at loop 0
+  groups: 4                         # groups per loop (defaults to population)
+  loops: 4                          # evolutionary iterations (incl. loop 0)
+  confidence_percentiles: []        # N=1 model -> needs 0 thresholds
+  fitness: diversity                # diversity sidesteps prompt_logprobs / scoring_model
+  selection: uniform
+  selection_temperature: 1.0
+  update: replace                   # replace each population each loop
+  lite_fraction: 0.0
+  lite_method: majority
+  recombination: aime25-aggregate   # registered by benchmarks/aime25/register.py
+  evaluation: aime25-none           # we evaluate separately with scripts/eval_math.py
+  task: math
+  generation_batch_size: 16
+  strip_think: false                # KEEP <think> blocks — we use them for SFT
+  seed: 1234
+
+models:                             # cheapest -> most expensive (1 entry = self-distillation)
+  - name: Qwen/Qwen3-4B-Thinking-2507
+    base_url: http://localhost:8000/v1
+    api_key: EMPTY
+    endpoint: chat
+    max_tokens: 8192
+    temperature: 0.7
+    top_p: 0.95
+    max_concurrency: 16
+
+# No scoring_model needed: single model + fitness=diversity.
+
+retry:
+  request_timeout_seconds: 600
+
+resume: false
+checkpoint_dir: ./outputs/squeeze_evolve/checkpoints
+metrics_path: ./outputs/squeeze_evolve/metrics.json

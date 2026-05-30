@@ -1,0 +1,19 @@
+# Defaults for scripts/eval_math.py.
+eval_file: data/eval/sample_eval.jsonl
+model_name_or_path: Qwen/Qwen3-4B-Thinking-2507
+adapter_path: null
+output: data/results/base_eval.jsonl
+
+# Set use_vllm_server: true to evaluate via an OpenAI-compatible HTTP server.
+use_vllm_server: false
+base_url: http://localhost:8000/v1
+api_key: EMPTY
+
+dtype: bfloat16
+
+# pass@1 evaluation — use temperature 0 for deterministic decoding.
+temperature: 0.0
+top_p: 1.0
+max_tokens: 8192
+seed: 0
+system_prompt: null

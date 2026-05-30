@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tts-sft"
+version = "0.1.0"
+description = "Test-time scaling vs. raw self-SFT for math reasoning."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "tts-sft contributors" }]
+dependencies = [
+    "torch>=2.1",
+    "transformers>=4.45",
+    "datasets>=2.20",
+    "accelerate>=0.34",
+    "peft>=0.13",
+    "trl>=0.12",
+    "openai>=1.40",
+    "pydantic>=2.6",
+    "pyyaml>=6.0",
+    "tqdm>=4.66",
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "rich>=13.7",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+quant = ["bitsandbytes>=0.43"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra"

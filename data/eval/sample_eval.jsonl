@@ -1,0 +1,8 @@
+{"id": "eval_000001", "question": "What is 17 + 25?", "answer": "42"}
+{"id": "eval_000002", "question": "Find the value of x if 3x + 7 = 22.", "answer": "5"}
+{"id": "eval_000003", "question": "Compute the sum of the first 10 positive integers.", "answer": "55"}
+{"id": "eval_000004", "question": "A right triangle has legs of length 3 and 4. What is the length of its hypotenuse?", "answer": "5"}
+{"id": "eval_000005", "question": "How many positive divisors does 36 have?", "answer": "9"}
+{"id": "eval_000006", "question": "Find the smallest positive integer n such that n! > 1000.", "answer": "7"}
+{"id": "eval_000007", "question": "If a fair six-sided die is rolled twice, what is the probability that the sum is 7? Express your answer as a common fraction.", "answer": "1/6"}
+{"id": "eval_000008", "question": "What is 12 * 11?", "answer": "132"}
