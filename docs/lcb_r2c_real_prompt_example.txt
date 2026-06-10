@@ -1,0 +1,3656 @@
+You are given a competitive programming problem, several candidate solutions, and visible execution feedback for each candidate.
+
+Some candidate solutions may be incorrect. The feedback is based only on public/sample execution and may be incomplete. It does not include hidden tests.
+
+Your task is to synthesize one correct Python solution.
+
+Correctness is the primary goal. However, to the extent possible, keep the final solution close to the candidate attempts. Prefer repairing, combining, and minimally modifying useful parts of the candidate solutions over writing a completely different solution from scratch. Only deviate substantially from the candidate attempts if their approaches are clearly flawed.
+
+Use the visible execution feedback to avoid known bugs, but do not blindly trust any single candidate or any single feedback item. Do not overfit only to the shown public/sample tests. Reason about the full problem constraints.
+
+Return only one complete Python code block enclosed with triple backticks. Do not include explanation outside the code block.
+
+Problem:
+You are given two integer arrays, nums1 and nums2, both of length n, along with a positive integer k.
+For each index i from 0 to n - 1, perform the following:
+
+Find all indices j where nums1[j] is less than nums1[i].
+Choose at most k values of nums2[j] at these indices to maximize the total sum.
+
+Return an array answer of size n, where answer[i] represents the result for the corresponding index i.
+ 
+Example 1:
+
+Input: nums1 = [4,2,1,5,3], nums2 = [10,20,30,40,50], k = 2
+Output: [80,30,0,80,50]
+Explanation:
+
+For i = 0: Select the 2 largest values from nums2 at indices [1, 2, 4] where nums1[j] < nums1[0], resulting in 50 + 30 = 80.
+For i = 1: Select the 2 largest values from nums2 at index [2] where nums1[j] < nums1[1], resulting in 30.
+For i = 2: No indices satisfy nums1[j] < nums1[2], resulting in 0.
+For i = 3: Select the 2 largest values from nums2 at indices [0, 1, 2, 4] where nums1[j] < nums1[3], resulting in 50 + 30 = 80.
+For i = 4: Select the 2 largest values from nums2 at indices [1, 2] where nums1[j] < nums1[4], resulting in 30 + 20 = 50.
+
+
+Example 2:
+
+Input: nums1 = [2,2,2,2], nums2 = [3,1,2,3], k = 1
+Output: [0,0,0,0]
+Explanation:
+Since all elements in nums1 are equal, no indices satisfy the condition nums1[j] < nums1[i] for any i, resulting in 0 for all positions.
+
+ 
+Constraints:
+
+n == nums1.length == nums2.length
+1 <= n <= 10^5
+1 <= nums1[i], nums2[i] <= 10^6
+1 <= k <= n
+
+Your solution should have the following signature: ```python
+def findMaxSum(self, nums1: List[int], nums2: List[int], k: int) -> List[int]:
+```
+
+Candidate solutions and visible feedback:
+
+---- Solution 1 ----
+Okay, so I need to solve this problem where I have two integer arrays, nums1 and nums2, both of length n, and a positive integer k. For each index i from 0 to n-1, I have to find all indices j where nums1[j] is less than nums1[i]. Then, from those j, I can choose at most k values of nums2[j] to maximize the total sum. The result for each i is that maximum sum.
+
+First, let me understand the examples.
+
+In Example 1:
+nums1 = [4,2,1,5,3], nums2 = [10,20,30,40,50], k=2
+Output: [80,30,0,80,50]
+
+For i=0: nums1[i] is 4. We look for j where nums1[j] < 4. Those j are 1 (nums1=2), 2 (nums1=1), 4 (nums1=3). Then, we take the top 2 from nums2 at these j: nums2[4]=50 and nums2[2]=30, so 80.
+
+For i=1: nums1[i]=2. j where nums1[j] < 2: only j=2 (nums1=1). So we take 1 value (k=2, but only one available), so 30.
+
+For i=2: nums1[i]=1. No j with nums1[j] <1, so 0.
+
+For i=3: nums1[i]=5. j where nums1[j] <5: all j except i=3 (since nums1[3]=5). So j=0,1,2,4. Then take top 2 nums2: 50 (j=4) and 40 (j=3? Wait, nums2 is [10,20,30,40,50] so j=4 is nums2[4]=50, j=0 is 10, j=1 is 20, j=2 is 30, j=4 is 50. Wait, the indices j for nums1[j] <5 are j=0 (4), j=1 (2), j=2 (1), j=4 (3). So the nums2 values are 10,20,30,50. Top 2 are 50 and 30, sum 80.
+
+For i=4: nums1[i]=3. j where nums1[j] <3: j=1 (2), j=2 (1). nums2 values: 20 and 30. Top 2 sum to 50.
+
+Hmm, seems correct.
+
+Constraints: n up to 1e5. So we need an efficient solution.
+
+The straightforward approach would be, for each i, loop through all j, check if nums1[j] < nums1[i], collect nums2[j], then take top k. But that's O(n^2), which is way too slow for n=1e5.
+
+We need a better approach.
+
+Idea: Process the indices in increasing order of nums1. Because when we consider a particular i, we want all j with nums1[j] < nums1[i]. So if we sort the indices by nums1, then for each i (in the sorted order), we can have a data structure that holds nums2[j] for all j processed so far (which have smaller nums1). Then, for the original index i (after sorting), we can get the top k sums from the data structure.
+
+But we need to output the result for each original index i. So we need to track which original index corresponds to which in the sorted list.
+
+Let me think.
+
+Let's create a list of indices sorted by nums1. For example, if we have nums1 = [4,2,1,5,3], then sorted indices by nums1 would be [2,1,4,0,3] because nums1[2]=1, nums1[1]=2, nums1[4]=3, nums1[0]=4, nums1[3]=5.
+
+Then, as we process the sorted list from smallest to largest, when we process a particular index, we have all the smaller nums1 indices already processed (since we are going from small to large). So for a given original index i, when we process it, we have all j with nums1[j] < nums1[i] already in the data structure.
+
+Wait, no. Let's see: when we sort the indices by nums1, then the first element in the sorted list has the smallest nums1, the next one has next smallest, etc. So for the current element in the sorted list (say, index x), we have all elements with smaller nums1 already processed (because we are processing from smallest to largest). But the problem requires for each i, find j with nums1[j] < nums1[i]. So when processing the sorted list, for each index x in the sorted list, when we process it, the data structure contains all indices with nums1[j] < nums1[x] (since the data structure is built as we go).
+
+Wait, but when we process an index x, we add its nums2[x] to the data structure. But for the purpose of the problem, when we want to compute the result for a particular index i (original), we need to look at all j where nums1[j] < nums1[i]. So if we have the data structure that contains all indices with nums1[j] < current nums1, then for the current index i in the sorted order, we can get the top k from the data structure and store it as the answer for the original index i.
+
+Wait, no: the data structure should be built as we process the sorted list (from low nums1 to high), so for the current element (say, with value a), the data structure contains all elements processed so far (which have nums1 < a). Because when we process in increasing order, each step adds a new element that is >= the previous.
+
+Wait, suppose the sorted list is in increasing order. So for the m-th element (0-based), we have sorted_nums1[m] <= sorted_nums1[m+1]. But for the m-th element, we want to collect all elements before it (since their nums1 is less than or equal? No, we need strictly less). Hmm, this is a bit tricky.
+
+Let me think. Let's say we have sorted the indices by nums1. If there are duplicates, how to handle?
+
+In Example 2: nums1 = [2,2,2,2], all same, so no j satisfies nums1[j] < nums1[i], so answer is 0.
+
+So, when sorting by nums1, we need to handle the case where multiple indices have same nums1.
+
+The problem requires nums1[j] < nums1[i]. So when processing in sorted order, for a given index x, we only want to add it to the data structure after we have processed all indices with smaller nums1.
+
+So, the standard approach is to sort the indices by nums1, but for elements with the same nums1, process them in such a way that when you process a group with the same nums1, you don't include them in the data structure until all elements with smaller nums1 are processed.
+
+So, step-by-step:
+
+1. Create a list of (nums1[i], nums2[i], i) for each index i.
+
+2. Sort this list by nums1. For elements with same nums1, the order doesn't matter (since for a given index i, we need j with nums1[j] < nums1[i], not <=).
+
+3. Initialize a data structure that can store up to k largest elements (so that we can quickly get the sum of top k). For example, a max-heap (but in Python, heaps are min-heaps, so we can use negative values), or a Fenwick tree, but with k being small (k <= n, but up to 1e5), but we need efficient insertion and extraction of top k.
+
+Wait, for the problem, for each index in the sorted list, we want to get the sum of the top k elements in the current data structure (the data structure contains all nums2[j] for j with nums1[j] < current nums1). Wait, no: for each i in the original problem, the data structure when processing the sorted list would have all j with nums1[j] < nums1[i].
+
+Wait, let's say we process the sorted list from smallest to largest. For each element in the sorted list, when we process it (say, element x), we look into the data structure that has all elements processed so far (which have nums1 < nums1[x]), and compute the sum of top k elements. But wait, the data structure's purpose is to hold the nums2 values for j with nums1[j] < current x's nums1. Wait, but the problem says for each i, we need to take j where nums1[j] < nums1[i]. So when we process i in the sorted list, the data structure has all j with nums1[j] < nums1[i] (since we've processed all smaller nums1 already). Wait, no: the sorted list is in increasing order. So when we process the sorted list, the first element has the smallest nums1, so for that element, there are no j with nums1[j] < it (since it's the smallest), so the sum is 0.
+
+Wait, for example:
+
+Original array: nums1 = [4,2,1,5,3], sorted indices (by nums1) would be [2,1,4,0,3] (nums1[2]=1, nums1[1]=2, nums1[4]=3, nums1[0]=4, nums1[3]=5).
+
+So for sorted index 0 (original index 2, nums1=1): when processing this element, the data structure is empty (since it's the first). So we compute answer for original index 2 as 0.
+
+Then, we add nums2[2] (which is 30) to the data structure.
+
+Next, sorted index 1 (original index 1, nums1=2): the data structure has one element (30). We take the top k=2 elements (but only 1 available), so sum is 30. So answer for original index 1 is 30.
+
+Then we add nums2[1] (20) to the data structure.
+
+Next, sorted index 2 (original index 4, nums1=3): data structure has [30,20]. Take top 2: 30+20=50. So answer for original index 4 is 50.
+
+Then add nums2[4] (50) to the data structure.
+
+Next, sorted index 3 (original index 0, nums1=4): data structure has [30,20,50]. Top 2: 50 +30=80. So answer for original index 0 is 80.
+
+Then add nums2[0] (10) to data structure.
+
+Next, sorted index 4 (original index 3, nums1=5): data structure has [30,20,50,10]. Top 2:50+30=80. So answer for original index 3 is 80.
+
+Yes, that matches the example output: [80,30,0,80,50]. Wait, the original indexes are 0,1,2,3,4.
+
+So the answer array for original indexes: index 0 is 80, index1 is 30, index2 is 0, index3 is 80, index4 is 50. Which is [80,30,0,80,50]. Correct.
+
+So the plan is:
+
+- Create a list of tuples: (nums1[i], nums2[i], i) for all i.
+
+- Sort this list by nums1.
+
+- Initialize a data structure that can hold up to k largest elements and their sum. Since we need to get the sum of the top k elements (but k can be up to n, but n is 1e5), we can maintain a min-heap of size k (so the k largest elements). Because when we add a new element, if it's larger than the smallest in the heap, we replace the smallest with this new element. Then, the sum of the heap is the sum of the top k elements.
+
+Wait, for example, the heap will be a min-heap for the top k elements. Because the smallest in the heap is the k-th largest element. So whenever we add a new element, if it's larger than the current min in the heap (if the heap has k elements), we pop the min and push the new element. Otherwise, we ignore.
+
+Wait, no. Wait, for each index in the sorted list (processed in order of increasing nums1), we want to compute the current sum (sum of top k elements in the data structure). But the data structure is being built as we process each element.
+
+Wait, but the problem is: when we process a sorted index x (original index i), the data structure contains all j with nums1[j] < nums1[i]. But in the sorted list, when we process an index, all previous elements (in the sorted list) have nums1 <= current. But we need strictly less. So to handle duplicates, we need to process all elements with the same nums1 together, but not include them in the data structure until after processing all elements with smaller nums1.
+
+Wait, in the example above, the sorted list has nums1 values: 1, 2, 3, 4, 5. So no duplicates. But if there are duplicates, like nums1 = [2,2,2,2], then when sorted, all elements have the same nums1. So for the first element in the sorted list, data structure is empty (since we haven't added any elements with smaller nums1). Then, when we process the first element (nums1=2), data structure is empty, so answer is 0. Then we add nums2 for that index to the data structure. Then process next element (nums1=2), but now the data structure contains previous elements (nums1=2), but since we want j where nums1[j] < nums1[i] (2), those elements have nums1[j] =2 which is not <2. So we should not have added those elements into the data structure when processing the next elements with same nums1.
+
+Ah, so this is a crucial point.
+
+So the approach:
+
+- Sort the list of indices by nums1. But for elements with the same nums1, we process them in groups. For a given group of indices with the same nums1 value, we first compute the answer for each index in this group (using the data structure that contains elements with nums1 < current value), then add the current group's nums2 values to the data structure.
+
+Because elements with the same nums1 should not be considered as having nums1[j] < nums1[i] (since it's equal). So when processing a group with value a, we first compute the answers for all indices in this group (using the data structure that has elements with nums1 < a), then add all the nums2 from this group to the data structure for the next groups (with nums1 >= a).
+
+That makes sense.
+
+So the steps:
+
+1. Create a list of (nums1[i], nums2[i], i) for each i.
+
+2. Sort this list by nums1. For same nums1, order doesn't matter.
+
+3. Initialize a min-heap (priority queue) to store the top k nums2 values. The heap will store the smallest of the top k elements. Also, maintain a running sum of the top k elements.
+
+4. Initialize an answer list of zeros of size n.
+
+5. Traverse the sorted list, grouping by nums1.
+
+   a. For each group (same nums1), first compute the current sum (sum of top k elements in the heap). Then, for each index i in this group, set answer[i] to this current sum.
+
+   b. Then, add all nums2 values in this group to the heap. For each nums2 value:
+
+      i. If the heap has less than k elements, add the value and add to the sum.
+
+      ii. Else, if the value is greater than the smallest in the heap (heap[0]), pop the smallest and push the new value. Update the sum accordingly.
+
+Wait, but the problem says "choose at most k values". So if there are fewer than k elements in the heap, we take all of them.
+
+So the data structure (heap) will store up to k elements, and the sum is the sum of all elements in the heap (since we want the largest possible sum with at most k elements; if there are less than k, then we take all).
+
+Wait, in the problem statement: "choose at most k values of nums2[j] at these indices to maximize the total sum". So if there are m elements (m < k), then take all m, sum is sum(m elements).
+
+So the heap should maintain the top m elements (m = min(k, number of elements so far)), and the sum is the sum of the heap.
+
+So the steps for the data structure:
+
+- Use a min-heap (so we can pop the smallest element in the heap).
+
+- Also maintain a variable total_sum that tracks the sum of the heap.
+
+- For each new element x:
+
+   - If the heap size < k:
+
+      - push x
+
+      - total_sum += x
+
+   - else:
+
+      - if x > heap[0]:
+
+          - pop the smallest element (min) from heap, subtract it from total_sum
+
+          - push x to heap
+
+          - total_sum += x
+
+   - But after processing all elements in the current group, when we need to compute the answer for the group, the total_sum is the sum of the top min(k, current_count) elements, which is what we need.
+
+Wait, no. Let's clarify.
+
+The heap is supposed to hold the best elements (the largest ones) so far. But when we are processing a group with nums1 = a, we have already added all elements with nums1 < a (the previous groups). Now, for each index in the current group (nums1 = a), we want to compute the sum of the top k elements from the previous groups (elements with nums1 < a). So the heap (data structure) has all elements from groups with nums1 < a.
+
+Wait, no. The processing steps:
+
+After sorting the list by nums1, we process the groups in increasing order.
+
+For each group (with nums1 = a), before adding this group's elements to the heap, the heap contains all elements with nums1 < a.
+
+So for each index in this group, when we compute the answer, the heap (total_sum) is the sum of the top min(k, heap_size) elements from the groups with nums1 < a.
+
+Once we compute the answers for all indices in this group, then we add their nums2 values to the heap (so that the next groups with nums1 >= a can use them).
+
+So the steps for the algorithm:
+
+1. Create a list of tuples: (nums1[i], nums2[i], i) for i in 0..n-1.
+
+2. Sort this list by nums1. For same nums1, the order is arbitrary (but we process all of them first).
+
+3. Initialize a min-heap (heapq) and a variable total = 0.
+
+4. Create an answer array of zeros (size n).
+
+5. Traverse the sorted list:
+
+   a. Group indices with the same nums1.
+
+   b. For the current group (all indices with the same nums1 value), compute the answer for each index in this group as the current total (sum of top k elements in the heap, which are from previous groups with smaller nums1).
+
+   c. Then, add all nums2 values of this group to the heap (and update total).
+
+Let's see how the example works.
+
+Example 1:
+
+nums1 = [4,2,1,5,3], nums2 = [10,20,30,40,50], k=2.
+
+Sorted list of (nums1[i], nums2[i], i):
+
+(1,30,2)
+
+(2,20,1)
+
+(3,50,4)
+
+(4,10,0)
+
+(5,40,3)
+
+Groups:
+
+Group 1: nums1=1 (only index 2)
+
+For this group, before adding to heap, the heap is empty (total=0). So answer for index 2 is 0.
+
+Then add nums2[2] =30 to heap. Heap is [30] (min-heap, so [30]). total =30.
+
+Group 2: nums1=2 (index1)
+
+Before adding this group, the heap has [30] (total=30). So answer for index1 is 30 (since we take the top 2, but only 1 element, so sum is 30).
+
+Then add nums2[1] =20 to heap.
+
+Heap now has [20,30] (but min-heap is stored as [20,30] when heapified). total=50.
+
+Group3: nums1=3 (index4)
+
+Before adding this group, heap has [20,30] (total=50). So answer for index4 is 50.
+
+Then add nums2[4] =50.
+
+Since k=2, heap size is 2. Check if 50 > heap[0] (20)? Yes. So pop 20, push 50. Heap becomes [30,50] (min-heap), total=50+30=80.
+
+Group4: nums1=4 (index0)
+
+Before adding, total=80. So answer for index0 is 80.
+
+Add nums2[0]=10.
+
+Heap size is 2 (30 and 50). 10 <=30 (heap[0]=30), so do nothing. Heap remains [30,50], total=80.
+
+Group5: nums1=5 (index3)
+
+Before adding, total=80. Answer for index3 is 80.
+
+Then add nums2[3]=40.
+
+Check if 40 > heap[0] (30). Yes. So pop 30, add 40. Heap becomes [40,50], total=90? Wait no:
+
+Wait, the heap is min-heap. After adding 50 (from group3), the heap is [30,50] (heapified as [30,50]). total=80.
+
+Then for group4 (nums1=4), we added 10, which is not larger than 30, so heap remains [30,50], total=80.
+
+For group5 (nums1=5), before adding this group, the heap has sum=80. So answer for index3 is 80.
+
+Then we add nums2[3] =40 to the heap.
+
+Current heap has [30,50] (size=2). 40 > 30 (the smallest in the heap), so we pop 30, add 40. Heap becomes [40,50]. total=40+50=90.
+
+But in the example, the answer for index3 is 80. Wait, but according to the problem statement, the answer for i=3 (which is index3) is 80. So in the example output, the answer array is [80,30,0,80,50]. So the fourth element is 80 (index3).
+
+So the algorithm as described gives the correct answers.
+
+Let's see why the total after adding group5 is irrelevant for the answer.
+
+Yes, because for each group, the answer is computed before adding the group's elements.
+
+So the code steps:
+
+We need to group the sorted list by nums1. For example, using itertools.groupby.
+
+In Python, we can do:
+
+sorted_list = sorted( [(nums1[i], nums2[i], i) for i in range(n)], key=lambda x: x[0] )
+
+Then, group by x[0].
+
+For each group in groupby(sorted_list, key=lambda x: x[0]):
+
+   current_group = list(group)
+
+   # For each index in this group, set answer[index] = current_total
+
+   for idx_tuple in current_group:
+
+       i = idx_tuple[2]
+
+       answer[i] = current_total
+
+   # Then, add all nums2 in this group to the data structure (heap)
+
+   for idx_tuple in current_group:
+
+       val = idx_tuple[1]
+
+       # Add to heap and update current_total
+
+This way, for each group, we first compute the answers (using the previous total), then add the current group's nums2 to the heap for the next groups.
+
+Now, how to manage the heap.
+
+We'll use heapq. But heapq is min-heap.
+
+The heap will store the largest k elements. Wait, no. The heap will store the elements that we want to keep as top k. But when we have more than k elements, we want to keep the k largest.
+
+Wait, no: the heap will store up to k elements, and we want to be able to get the sum of the top k.
+
+For example, with k=2.
+
+We want to maintain a min-heap of size k, such that the smallest element in the heap is the k-th largest in the current set.
+
+So whenever we add a new element, if the heap has size <k, we add it. If size ==k, we check if the new element is larger than the smallest in the heap. If yes, replace the smallest with the new element.
+
+This way, the heap always contains the k largest elements seen so far (from the previous groups).
+
+The sum is maintained as total.
+
+So the code for the heap:
+
+import heapq
+
+heap = []
+
+total = 0
+
+for group in groupby(sorted_list, key=lambda x: x[0]):
+
+   # First, for each index in this group, set answer[i] = total
+
+   group_list = list(group)
+
+   for (nums1_val, nums2_val, i) in group_list:
+
+       answer[i] = total
+
+   # Now, process each element in this group
+
+   for (nums1_val, nums2_val, i) in group_list:
+
+       # If heap has less than k elements, add the num2_val
+
+       if len(heap) < k:
+
+           heapq.heappush(heap, nums2_val)
+
+           total += nums2_val
+
+       else:
+
+           # If the heap has k elements, check if current nums2_val is larger than the smallest in the heap
+
+           if nums2_val > heap[0]:
+
+               # Pop the smallest and add nums2_val
+
+               smallest = heapq.heappop(heap)
+
+               total -= smallest
+
+               heapq.heappush(heap, nums2_val)
+
+               total += nums2_val
+
+But wait, when k=0? No, k is at least 1.
+
+But in this code, when the heap size is exactly k, we check if the new element is larger than heap[0]. If yes, replace.
+
+Yes, this way, the heap will have the top k elements.
+
+Wait, but in the example group4 (nums1=4), when we add nums2[0]=10, the heap size is k=2. The heap has [30,50] (min-heap, so heap[0] is 30). So 10 is not larger than 30, so we don't add. So total remains 80.
+
+That's correct.
+
+Let's see group3 (nums1=3): we add nums2[4]=50.
+
+Current heap size is 2 (from group2: 20 and 30). So heap is [20,30], total=50.
+
+When adding 50: 50 > 20 (heap[0]), so pop 20, add 50. total becomes 50 +50 -20 = 80.
+
+Yes.
+
+So the code structure seems correct.
+
+Edge case: k=1.
+
+Another edge case: all elements in nums1 are the same. Then, each group has all n elements. For each group, before adding, the heap is empty (total=0), so all answers are 0.
+
+Which matches Example 2.
+
+So the code should handle that.
+
+Now, what about when there are more than k elements in the heap? Wait, no: we only store up to k elements. So the heap size is min(k, number of elements processed so far).
+
+Wait, no: the heap is maintained to have exactly k elements if we have processed at least k elements. Otherwise, it has less than k.
+
+Yes, because for each element in the group, we add it only if heap size <k, or if it's larger than the current smallest.
+
+So the heap size will be up to k.
+
+Let's test with n=1e5, k=50000. The code should handle it efficiently with O(n log k).
+
+Since each element is added to heap once (O(log k) per operation), and n is 1e5, it's acceptable.
+
+Let's write the code.
+
+First, import heapq.
+
+But since we're in a function, we need to import at the top.
+
+Wait, but in the problem, the function signature is:
+
+def findMaxSum(self, nums1: List[int], nums2: List[int], k: int) -> List[int]:
+
+So the code will be inside this function.
+
+We need to import List from typing, but in LeetCode's environment, it's handled. But since the problem says "write a correct Python program", we'll have to import heapq and List.
+
+Wait, but the problem says: "You may start by outlining your thought process. In the end, please provide the complete code in a code block enclosed with ```."
+
+So the code block must be correct.
+
+So here's the plan:
+
+1. Create a list of tuples (nums1[i], nums2[i], i) for i in 0 to n-1.
+
+2. Sort this list by nums1.
+
+3. Group by nums1.
+
+4. Initialize heap as empty list, total = 0.
+
+5. For each group:
+
+   a. For each index in group, set answer[i] = total.
+
+   b. For each nums2 in group, add to heap (as described).
+
+Now, code in Python.
+
+Note: The problem has constraints up to 1e5, so using groupby from itertools is efficient.
+
+Let me write the code.
+
+First, import necessary modules.
+
+But in the code block, we need to have:
+
+import heapq
+from itertools import groupby
+
+Wait, but in Python, groupby is from itertools. So code would start with:
+
+import heapq
+from itertools import groupby
+
+But the problem says to write the code in a code block.
+
+Wait, the function is inside the class? The problem says: "Your solution should have the following signature: ```python def findMaxSum(self, nums1: List[int], nums2: List[int], k: int) -> List[int]: ```"
+
+So this is a method of a class. So the code should be inside a class.
+
+But according to the problem statement, the user wants the code block to be the complete code (the function), but maybe as a standalone function? Wait, the problem says "the complete code in a code block".
+
+But in LeetCode, the problem is part of a class. But since the problem says "You will be given a coding problem", and the code should be self-contained.
+
+Wait, the problem says "You need to write a correct Python program that matches the specification and passes all tests."
+
+The function signature is given as a method (with self), but perhaps the problem expects a top-level function. However, in the problem statement, it's written as a method.
+
+But the problem says: "Your solution should have the following signature: ```python def findMaxSum(self, nums1: List[int], nums2: List[int], k: int) -> List[int]: ```"
+
+So the code should be written as a method.
+
+But for the code block, perhaps it's better to write it as a standalone function? Wait, no. The problem says the solution should have that signature, so we'll write it as a method inside a class.
+
+But in the code block, we can just write the function definition. However, in LeetCode's context, such problems are usually written as a method. But the problem doesn't specify the class.
+
+Wait, the problem says: "You are given two integer arrays, nums1 and nums2, both of length n, along with a positive integer k."
+
+And the function is to be written as described.
+
+Hmm. To be safe, I'll write it as a standalone function, but the problem's signature is a method with self. Wait, maybe in this context, the user expects a function that takes nums1, nums2, k, but the problem says "with the following signature".
+
+The problem says: "the following signature: ```python def findMaxSum(self, nums1: List[int], nums2: List[int], k: int) -> List[int]: ```"
+
+So the code should be a method of a class. However, in the code block, since it's a code block for the answer, we can write it as a function without the class, but maybe it's better to follow exactly.
+
+But the problem says: "In the end, please provide the complete code in a code block enclosed with ```."
+
+So to follow the signature, I'll write it as a function inside a class. But for LeetCode-style problems, they often have a class. However, the user might not care as long as the function is correctly named.
+
+Wait, perhaps the user wants the code to be a top-level function. Let's check.
+
+In the problem statement, the function is defined as a method (with self), but maybe in their test environment, it's a class method. However, in the code block, we can just write the function definition without the class context.
+
+But to match the signature exactly, perhaps the problem expects it to be written as a function taking three parameters (without self), but the problem says the signature is with self.
+
+Hmm. The problem states: "Your solution should have the following signature: ```python def findMaxSum(self, nums1: List[int], nums2: List[int], k: int) -> List[int]: ```"
+
+So the code block should contain a method of a class. But for the purpose of the answer, since we're writing code, perhaps it's acceptable to write a top-level function. But the problem might expect the class.
+
+Alternatively, in some platforms, you just need to write the function.
+
+Wait, the problem says "You may start by outlining your thought process. In the end, please provide the complete code in a code block".
+
+So the user will probably run it as a function. But to be safe, let's write it as a function without the self parameter, but the problem says the signature includes self. Hmm.
+
+Wait, looking back, in the problem statement examples, they use Python's list. So the code block should have the correct function.
+
+Given the confusion, I'll write it as a top-level function, since in many coding problems on LeetCode, you just submit a function. But the problem says "signature with self".
+
+Wait, perhaps the user expects a function that can be run as a method. To be precise, I'll write the code as a function that takes three parameters, but the problem says it's a method. Hmm.
+
+Alternatively, in Python, you can have:
+
+class Solution:
+    def findMaxSum(self, nums1: List[int], nums2: List[int], k: int) -> List[int]:
+        ...
+
+But the problem's code block should start with the function definition.
+
+Let's proceed.
+
+First, the code:
+
+Import necessary modules:
+
+import heapq
+from itertools import groupby
+
+Then, create the function.
+
+But the problem says n is up to 1e5, and the code must run in 1 second.
+
+The approach is O(n log k), which is acceptable.
+
+Let's code:
+
+Steps:
+
+- Create list of (nums1[i], nums2[i], i)
+
+- Sort this list by nums1.
+
+- Group by nums1.
+
+- For each group, set answers for all indices in group to current total.
+
+- Then, add the nums2 values to heap and update total.
+
+Edge case: if k is 0, but problem states k is positive, so no.
+
+Another edge case: when there are no elements in the heap (for the first group), total is 0.
+
+Let me code it.
+
+Wait, in Python, groupby from itertools is used as follows:
+
+sorted_list = sorted( (nums1[i], nums2[i], i) for i in range(n) ), key=lambda x: x[0] )
+
+Then, for group in groupby(sorted_list, key=lambda x: x[0]):
+
+    group_list = list(group)
+
+But groupby returns an iterator that yields (key, group), so we can iterate like:
+
+for key, group in groupby(sorted_list, key=lambda x: x[0]):
+
+    group_list = list(group)
+
+But the key is nums1.
+
+Wait, but when we have the same key, groupby groups them.
+
+Yes.
+
+Let's code:
+
+def findMaxSum(self, nums1: List[int], nums2: List[int], k: int) -> List[int]:
+    n = len(nums1)
+    # Create list of tuples
+    arr = [(nums1[i], nums2[i], i) for i in range(n)]
+    arr.sort(key=lambda x: x[0])  # sort by nums1
+    
+    # Initialize
+    heap = []
+    total = 0
+    ans = [0] * n
+    
+    # Use groupby
+    from itertools import groupby
+    for key, group in groupby(arr, key=lambda x: x[0]):
+        # For each index in this group, set answer to current total
+        for val in group:
+            idx = val[2]
+            ans[idx] = total
+        
+        # Now, add the nums2 values from this group to the heap
+        for val in group:
+            num2 = val[1]
+            if len(heap) < k:
+                heapq.heappush(heap, num2)
+                total += num2
+            else:
+                if num2 > heap[0]:
+                    removed = heapq.heappop(heap)
+                    total -= removed
+                    heapq.heappush(heap, num2)
+                    total += num2
+    return ans
+
+Wait, but in Python, the groupby groups the same key. So for each group, we iterate over all elements.
+
+Let's test with Example 1.
+
+In the code, for each group, first set ans for indices to current total.
+
+Then add the nums2 to the heap.
+
+Yes.
+
+Let me run through Example 1 step by step.
+
+arr = [(4,10,0), (2,20,1), (1,30,2), (5,40,3), (3,50,4)]
+
+sorted by nums1: [(1,30,2), (2,20,1), (3,50,4), (4,10,0), (5,40,3)]
+
+So groupby:
+
+First group: key=1, group: [(1,30,2)]
+
+For each element in group: set ans[2] = total (which is 0). So ans[2] =0.
+
+Then process group: add 30.
+
+heap: [30], total=30.
+
+Second group: key=2, group: [(2,20,1)]
+
+ans[1] =30.
+
+Add 20.
+
+heap size is 2 (k=2). 20 > heap[0] (30)? No. So heap remains [20,30] (but min-heap stores as [20,30] when heapified), total=50.
+
+Wait, but heap is a min-heap. When we push 20, the heap is [20,30]. Then heap[0] is 20.
+
+But the code does:
+
+for val in group: num2=20.
+
+len(heap) is 1 <k=2, so push 20. total=30+20=50.
+
+So after this group, heap has [20,30], total=50.
+
+Third group: key=3, group: [(3,50,4)]
+
+ans[4] = total (50).
+
+Add 50.
+
+len(heap) is 2 (k=2), so check if 50 > heap[0] (20).
+
+Yes.
+
+Pop 20, add 50.
+
+heap becomes [30,50] (min-heap, heap[0] is 30).
+
+total =50 -20 +50=80.
+
+Fourth group: key=4, group: [(4,10,0)]
+
+ans[0] = total (80).
+
+Add 10.
+
+len(heap) is 2, 10> heap[0] (30)? No. So no change.
+
+total remains 80.
+
+Fifth group: key=5, group: [(5,40,3)]
+
+ans[3] =80.
+
+Add 40.
+
+40 > heap[0] (30) → yes.
+
+Pop 30, add 40.
+
+heap becomes [40,50], total=40+50=90.
+
+So the ans array is:
+
+ans[0]=80
+
+ans[1]=30
+
+ans[2]=0
+
+ans[3]=80
+
+ans[4]=50
+
+Which is [80,30,0,80,50]. Correct.
+
+Another test: Example 2.
+
+nums1 = [2,2,2,2], nums2 = [3,1,2,3], k=1.
+
+arr = [(2,3,0), (2,1,1), (2,2,2), (2,3,3)]
+
+sorted by nums1: all same.
+
+Group by 2.
+
+For the group:
+
+ans for all indices =0.
+
+Then add each nums2 to heap.
+
+k=1.
+
+First element: add 3 → heap=[3], total=3.
+
+Second element: 1. heap size is 1, and 1 <=3 → do nothing.
+
+Third element: 2. 2>3? No. do nothing.
+
+Fourth element:3. 3 <=3? Yes (since in min-heap, heap[0] is 3, so equal). Wait, the code checks num2 > heap[0]. So 3>3 is false. So not added.
+
+So heap remains [3], total=3.
+
+But the output should be all zeros.
+
+Yes. So the code works.
+
+Another edge case: k=1, and for a group, there's a single element.
+
+So the code should be correct.
+
+Now, the code may be slightly optimized. For example, in groupby, the key is the nums1 value.
+
+But I think this code should handle all cases.
+
+Let me check if the code is efficient.
+
+n up to 1e5. Each element is processed once for groupby, and each heap operation is O(log k), so total time O(n log k), which is acceptable for n=1e5 and k up to 1e5.
+
+Yes.
+
+Possible optimization: we could avoid converting the group to a list. But groupby's group is an iterator, so the for loop over group is O(m) per group.
+
+But in Python, groupby is efficient.
+
+Let me write the code as follows.
+
+Wait, in the code above, I used "from itertools import groupby" inside the function. That's okay.
+
+But to make it cleaner, we can import it at the top of the function.
+
+But in the code block, we'll write it as a function.
+
+So the code block:
+
+```python
+import heapq
+from itertools import groupby
+from typing import List
+
+class Solution:
+    def findMaxSum(self, nums1: List[int], nums2: List[int], k: int) -> List[int]:
+        n = len(nums1)
+        arr = [(nums1[i], nums2[i], i) for i in range(n)]
+        arr.sort(key=lambda x: x[0])
+        
+        heap = []
+        total = 0
+        ans = [0] * n
+        
+        for key, group in groupby(arr, key=lambda x: x[0]):
+            for _, _, idx in group:
+                ans[idx] = total
+            
+            for _, num2, _ in group:
+                if len(heap) < k:
+                    heapq.heappush(heap, num2)
+                    total += num2
+                else:
+                    if num2 > heap[0]:
+                        removed = heapq.heappop(heap)
+                        total -= removed
+                        heapq.heappush(heap, num2)
+                        total += num2
+        return ans
+```
+
+Wait, the code above uses list comprehension for group. Alternatively, we can iterate directly over the group without converting to list.
+
+But in Python, the group from groupby is an iterator.
+
+The code: for key, group in groupby(arr, key=lambda x: x[0]): 
+
+The group is an iterator over the elements in the group.
+
+So in the first loop: for _, _, idx in group: 
+
+We can unpack the elements as (nums1_val, nums2_val, idx).
+
+So the code is correct.
+
+Let me test this code with the examples.
+
+Yes.
+
+But note: in Python, when using groupby, the key function is called once per item to group them. So the code is efficient.
+
+Potential issue: when k=0, but the problem states k is positive, so no.
+
+This code should work.
+
+Another edge case: k is larger than the number of elements processed. But in the code, it's handled (heap size <k).
+
+Yes.
+
+Let me write the code.
+</think>
+
+To solve this problem, we need to efficiently compute for each index `i` in the arrays `nums1` and `nums2` the maximum sum of at most `k` values from `nums2` at indices `j` where `nums1[j] < nums1[i]`. Given the constraints (with `n` up to 10^5), a brute-force approach would be infeasible. Instead, we leverage sorting and a min-heap to achieve an optimal solution.
+
+### Approach
+1. **Problem Analysis**: For each index `i`, we need to consider all indices `j` such that `nums1[j] < nums1[i]` and select at most `k` values from `nums2[j]` to maximize the sum. The challenge is to do this efficiently for large `n`.
+
+2. **Intuition**: By sorting the indices based on `nums1` values, we can process indices in increasing order of `nums1`. For each group of indices with the same `nums1` value, we first compute the answer for all indices in the group using the current top `k` values from previously processed groups (which have smaller `nums1` values). Then, we add the current group's `nums2` values to a min-heap to maintain the top `k` values for subsequent groups.
+
+3. **Algorithm Selection**: 
+   - **Sorting**: We sort the indices based on `nums1` to process them in increasing order.
+   - **Group Processing**: Using `itertools.groupby`, we group indices with the same `nums1` value. For each group, we first set the answer for all indices in the group to the current sum of top `k` values (from the heap).
+   - **Min-Heap**: A min-heap is used to efficiently track the top `k` values from `nums2` of processed indices. The heap allows us to maintain the smallest value among the top `k` values, facilitating quick updates when a larger value is encountered.
+
+4. **Complexity Analysis**: 
+   - **Sorting**: O(n log n) time.
+   - **Group Processing**: O(n) time since each element is processed once.
+   - **Heap Operations**: Each insertion and extraction operation is O(log k), leading to O(n log k) time for all heap operations.
+   - **Overall Complexity**: O(n log n + n log k) = O(n log n) since `k` ≤ `n`. This is efficient for the given constraints (n ≤ 10^5).
+
+### Solution Code
+```python
+import heapq
+from itertools import groupby
+from typing import List
+
+class Solution:
+    def findMaxSum(self, nums1: List[int], nums2: List[int], k: int) -> List[int]:
+        n = len(nums1)
+        arr = [(nums1[i], nums2[i], i) for i in range(n)]
+        arr.sort(key=lambda x: x[0])
+        
+        heap = []
+        total = 0
+        ans = [0] * n
+        
+        for key, group in groupby(arr, key=lambda x: x[0]):
+            for _, _, idx in group:
+                ans[idx] = total
+            
+            for _, num2, _ in group:
+                if len(heap) < k:
+                    heapq.heappush(heap, num2)
+                    total += num2
+                else:
+                    if num2 > heap[0]:
+                        removed = heapq.heappop(heap)
+                        total -= removed
+                        heapq.heappush(heap, num2)
+                        total += num2
+        return ans
+```
+
+### Explanation
+1. **Initialization**: We start by creating a list of tuples `(nums1[i], nums2[i], i)` for each index `i`.
+2. **Sorting**: This list is sorted based on `nums1[i]` to process indices in increasing order of `nums1` values.
+3. **Group Processing**: Using `itertools.groupby`, we process indices in groups where each group contains indices with the same `nums1` value. For each group:
+   - **Answer Assignment**: The current sum of the top `k` values (from the heap) is assigned to all indices in the group. This sum represents the maximum sum of at most `k` values from `nums2` at indices where `nums1[j] < nums1[i]`.
+   - **Heap Update**: The `nums2` values from the current group are added to the min-heap. If the heap size is less than `k`, the value is added directly. Otherwise, if the value is larger than the smallest value in the heap, the smallest value is replaced with the new value, updating the total sum accordingly.
+4. **Result Construction**: After processing all groups, the `ans` array contains the computed results for each index, which is returned as the solution.
+
+This approach efficiently handles the constraints by leveraging sorting and a min-heap to maintain and update the top `k` values dynamically, ensuring optimal performance for large input sizes.
+---- Visible feedback on Solution 1 ----
+Visible execution feedback:
+STATUS: visible_failed_wrong_answer
+
+OBSERVED:
+Wrong answer on a shown public/sample test.
+
+DETAIL:
+Input:
+[4, 2, 1, 5, 3]
+[10, 20, 30, 40, 50]
+2
+Expected output:
+[80, 30, 0, 80, 50]
+Actual output:
+[0, 0, 0, 0, 0]
+
+CHECK:
+Use this visible execution result to identify possible bugs, but do not overfit only to the shown public/sample test. Hidden tests are not available.
+
+---- Solution 2 ----
+Okay, let's try to figure out how to solve this problem efficiently. 
+
+So, we have two arrays, nums1 and nums2, each of length n, and a positive integer k. For each index i, we need to find all indices j where nums1[j] < nums1[i], then choose at most k values from nums2[j] at those indices to maximize the total sum. Then return an array answer where answer[i] is that maximum sum.
+
+First, let's think about the constraints. n can be up to 10^5, so a brute-force approach would be too slow. For each i, we'd have to look at all j where nums1[j] < nums1[i], collect nums2[j], and then take the top k values. But that's O(n^2) in the worst case, which is way too slow for n=1e5.
+
+Hmm. We need a way to efficiently query for each i the top k values of nums2 where nums1[j] < nums1[i]. 
+
+Wait, maybe we can sort the indices based on nums1. Let's consider processing the elements in increasing order of nums1. So, if we sort the indices by nums1, then for a given i, all elements with nums1[j] < nums1[i] would have been processed before i.
+
+But how do we handle the fact that we need to query for each i? Let's think step by step.
+
+Suppose we create a list of indices sorted by nums1. So, for example, the sorted list might be [2,1,0,3,4] for the first example (since nums1 = [4,2,1,5,3]).
+
+When we process an index, we want to have a data structure that can maintain the top k nums2 values so far. Because, as we process elements in increasing order of nums1, when we get to an element with a certain value, all previous elements (with smaller nums1) have been added to the data structure.
+
+Wait, but for a given i, we need elements j where nums1[j] < nums1[i]. So if we process from smallest nums1 to largest, then for each element (in this sorted order), the elements that have been processed before it (with smaller nums1) can be used to compute the answer for the current element.
+
+But the problem is: the answer for a particular i (original index) depends on the original index i, not the sorted order.
+
+Let me rephrase. Let's create an array of tuples (nums1[i], nums2[i], i) and sort them by nums1[i]. Then, we can process this sorted list from smallest nums1 to largest. For each element in this sorted list, when we reach it, all elements with smaller nums1 (which are the ones that satisfy nums1[j] < nums1[i]) have already been processed. So, for the current element, the answer for its original index would be the sum of the top k nums2 values from the processed elements so far.
+
+Wait, but the problem says "for each index i from 0 to n-1". So for each i in the original array, we need to output the answer.
+
+So here's the plan:
+
+1. Create a list of (nums1[i], nums2[i], i) for all i. Sort this list by nums1[i] (in increasing order).
+
+2. Initialize a data structure that can keep track of the top k nums2 values from the processed elements. As we process each element in the sorted list, we add its nums2 to this data structure.
+
+3. But for each element in the sorted list, after adding it, we can't use it to compute the answer for later elements. Wait, no: when we process a certain element (say, with original index j), we want to compute the answer for all elements i where nums1[i] is larger than nums1[j]. Wait, no. Let's think again.
+
+Let me take the example. In the first example, the sorted list by nums1 would be [1, 2, 3, 4, 5]. Wait, nums1 is [4,2,1,5,3]. So sorted by nums1:
+
+index 2: 1
+
+index 1: 2
+
+index 4: 3
+
+index 0: 4
+
+index 3:5
+
+So sorted list is (1,30,2), (2,20,1), (3,50,4), (4,10,0), (5,40,3).
+
+Now, for the original index i=0 (nums1=4), when we process this element (the fourth in the sorted list), the processed elements before it (first three) have nums1 <4. So the top k=2 nums2 from those three would be used for i=0.
+
+But in the example, for i=0, the answer is 80 (50 + 30). Wait, 50 is from index4 (nums2[4]=50?), no, let's check.
+
+Wait in example 1, nums2 = [10,20,30,40,50]. So nums2[0]=10, nums2[1]=20, nums2[2]=30, nums2[3]=40, nums2[4]=50.
+
+So for i=0 (nums1[0]=4), the j where nums1[j] <4 are j=1 (nums1[1]=2), j=2 (nums1[2]=1), j=4 (nums1[4]=3). So nums2[j] are 20,30,50. So the top 2 are 50 and 30, sum to 80.
+
+So when we process the elements in sorted order (by nums1):
+
+- The first element is j=2 (nums1=1), nums2=30.
+
+- Then j=1 (nums1=2), nums2=20.
+
+- Then j=4 (nums1=3), nums2=50.
+
+- Then j=0 (nums1=4), nums2=10.
+
+- Then j=3 (nums1=5), nums2=40.
+
+For the element j=0 (original index 0), when we process it (the fourth element), the previous elements (j=2,1,4) have been added. So we take the top k=2 from those (30, 20, 50) → 50 +30 = 80.
+
+Similarly, for j=3 (original index 3), which is the last element in sorted order (nums1=5), we need to take top k from all previous elements (the first four). The top 2 would be 50,30 → sum 80.
+
+Ah, so the idea is:
+
+- For each element in the sorted list (by nums1), the answer for the original index of this element is not directly the sum of top k from previous elements. Wait no. Wait, the problem says: for each index i, find j where nums1[j] < nums1[i]. So the answer for i is the sum of top k (at most k) from the nums2[j] where nums1[j] < nums1[i].
+
+So when we process elements in increasing order of nums1, for each element (current), we can compute the answer for all elements that have a larger nums1. But no: the answer for a given i is computed once, when we process i. Wait, no: the answer for i depends on all j where nums1[j] < nums1[i]. So if we process in increasing order of nums1, then when we reach an element with nums1 value x, all elements with nums1 <x have already been processed and added to the data structure. So for the current element (which has nums1 x), the sum of top k from the data structure is the answer for this element.
+
+Wait, but in the problem statement, for each i, we want to output the answer for i. So when we process each element in the sorted list (by nums1), we can set answer[i] = sum of top k from the data structure (which contains all elements with smaller nums1).
+
+Wait, that seems possible.
+
+Let's see.
+
+In the example:
+
+sorted list (nums1, nums2, original index):
+
+(1,30,2) → first in sorted order.
+
+(2,20,1) → next.
+
+(3,50,4) → next.
+
+(4,10,0) → next.
+
+(5,40,3) → last.
+
+For each element in sorted order:
+
+1. Process (1,30,2): the data structure is empty. The answer for index 2 would be 0? Wait no. Wait, no: the answer for i=2 (the original index) would be the sum for j where nums1[j] < nums1[2]. Since nums1[2] is 1, which is the smallest, there are no j with nums1[j] <1, so the answer for i=2 is 0. So when we process this element, we add 30 to the data structure, but the answer for this element (i=2) is 0.
+
+2. Process (2,20,1): the data structure has [30]. The answer for i=1 is the sum of top k (k=2) from this data structure. Since there's only 1 element, the sum is 30. Wait, but in the example, for i=1 (original index 1), the answer is 30. Wait yes. Because in the example, for i=1 (nums1=2), the j where nums1[j] <2 is j=2 (nums1=1). So the top k=2 from nums2[j] (only 1 element), so sum is 30. So answer[1] =30.
+
+3. Process (3,50,4): the data structure has [30,20]. The top k=2 is 30+20=50. Wait but in the example, for i=4 (original index 4, nums1=3), the answer is 50 (20+30? Wait the example says for i=4: select 2 largest from [1,2] (indices 1 and 2), which are 20 and 30 → sum 50. Wait no, the example says: for i=4, output is 50. But according to the problem's example, i=4 is the last element. Wait the example says:
+
+For i = 4: Select the 2 largest values from nums2 at indices [1, 2] where nums1[j] < nums1[4] (nums1[4] is 3). So j=1 (nums1=2) and j=2 (nums1=1) → nums2[j] are 20 and 30 → sum 50.
+
+So the answer for i=4 is 50.
+
+In the data structure, after processing the first two elements (nums1=1 and 2), when we process the third element (nums1=3), the data structure contains [30,20]. The top k=2 sum is 30+20=50 → so answer[4] =50. That's correct.
+
+4. Process (4,10,0): the data structure has [30,20,50]. The top k=2 sum is 50+30=80. So answer[0] =80. Which matches.
+
+5. Process (5,40,3): the data structure has [30,20,50,10]. Top 2 sum is 50+30=80. So answer[3] =80.
+
+Yes! So this approach works.
+
+So the plan is:
+
+- Create a list of tuples (nums1[i], nums2[i], i) for all i.
+
+- Sort this list by nums1[i] (in increasing order).
+
+- Initialize a data structure that can efficiently maintain the top k elements so far and their sum.
+
+- As we iterate through the sorted list:
+
+   a. For the current element (x, y, idx), the answer for this idx is the sum of the top k elements in the data structure (if there are less than k elements, then take all).
+
+   b. Then add y to the data structure.
+
+Wait, no: for the current element, the data structure contains elements with nums1 less than the current nums1 (since we're processing in increasing order). So when we process the element (x,y,idx), the data structure has all the elements with nums1 less than x. Therefore, the answer for this idx is the sum of top k from the data structure.
+
+But wait, in the example step 3 (processing the third element in sorted list: (3,50,4)), the data structure has the first two elements (nums1=1 and 2), which are less than 3. So the answer for idx=4 is sum of top k=2, which is 30+20=50.
+
+Yes, that's correct.
+
+But the data structure needs to support adding a new element and getting the sum of the top k elements.
+
+This sounds like a priority queue. Specifically, a max-heap.
+
+Wait, but Python's heapq is a min-heap. So to get the top k elements, we can maintain a min-heap of size k. Because if we keep the k largest elements in the min-heap (where the smallest of the k largest is at the top), then the sum is the sum of the elements in the heap.
+
+Wait, for example, we want to keep the top k elements. So for each new element, we can add it to the heap. If the heap has more than k elements, we pop the smallest (so that we keep the k largest).
+
+But since we're processing elements in increasing order of nums1, for each new element (y), we add it to the heap. The heap will have the top k (largest) elements so far.
+
+Wait, but how do we track the sum as we add elements?
+
+We can maintain a heap (min-heap) of size at most k. And a variable `current_sum` that tracks the sum of the heap.
+
+But when we add a new element y:
+
+If the heap has less than k elements:
+
+   add y to heap.
+
+   current_sum += y
+
+Else:
+
+   if y > heap[0] (the smallest in the heap):
+
+      pop the smallest (current_sum -= smallest)
+
+      push y to heap.
+
+      current_sum += y
+
+   else:
+
+      do nothing.
+
+Wait, but in this approach, the heap holds the k largest elements so far. So for each element processed, the sum of the heap is exactly the sum of the top k elements so far.
+
+But in the problem, for each i, we need the top k elements from the elements with smaller nums1. So when we process the element (x, y, idx) in sorted order, the sum of the heap (after adding all previous elements) is the answer for idx.
+
+Wait, but according to the previous steps, when we process (x, y, idx), the answer for idx is the sum of the top k elements in the heap (before adding the current y). Wait no:
+
+Wait, the heap is built from elements with nums1 less than current. So when we process the current element (x, y, idx), we first compute the answer for idx (based on the current state of the heap, which has all elements with nums1 <x), then add y to the heap.
+
+Yes! Because the elements with nums1 equal to x could also be included? No, the problem says nums1[j] < nums1[i]. So we need elements with strictly less.
+
+So, when processing in increasing order, for the current element (x, ...), the heap contains all elements with nums1 less than x (since we haven't added the elements with nums1 equal to x yet). Wait, but when we sort the list by nums1, if there are equal nums1, how do we handle them?
+
+Ah, the problem says: "Find all indices j where nums1[j] is less than nums1[i]". So for elements with the same nums1, they are not included. So when we have equal nums1 values, we have to process them in such a way that when processing an element with a given nums1 value, the heap does not include other elements with the same nums1 value.
+
+For example, in example 2, all nums1 are 2. So for each i, there's no j with nums1[j] <2, so answer is 0.
+
+But in the case where there are multiple elements with the same nums1, say two elements have nums1=3. When processing the first one, the heap has all elements with nums1 <3. When processing the second one (also nums1=3), the heap still has the same elements as before (since the second element is not less than 3), so the answer for the second element is the same as the first.
+
+So to handle duplicates, we should sort the list by nums1, and for equal nums1, we can process them in any order (since they don't affect each other's answers).
+
+Wait, but the problem says "nums1[j] is less than nums1[i]". So when two elements have the same nums1, neither is less than the other. So during the processing, when we sort the list by nums1, for elements with the same nums1, we process them one after another, but the heap will not include elements with the same nums1 as the current.
+
+So to implement this:
+
+- Sort the list of (nums1[i], nums2[i], i) by nums1[i], and for equal nums1[i], we can sort by any order (since it doesn't matter).
+
+But in Python, when we sort tuples, (a, b, c) with a equal, then it will sort by b, then c.
+
+So, let's create the list as [(nums1[i], nums2[i], i) for i in range(n)], then sort this list by key=lambda x: x[0].
+
+Wait, but in the case where nums1[i] is the same, we want to process them together so that their nums2[i] are not included in the heap for each other.
+
+So for example, if we have two elements with nums1=3, their nums2 values are added to the heap only after processing all elements with nums1 <3.
+
+So yes, the sort by nums1[i] (ascending) is correct.
+
+Now, the data structure: a min-heap of size k. We can use heapq, which is a min-heap in Python.
+
+But for the sum: we can maintain a variable `current_sum` that holds the sum of the k largest elements in the heap.
+
+Wait, but when the heap has less than k elements, the sum is the sum of all elements in the heap.
+
+But how do we handle that?
+
+Let's outline the steps:
+
+Initialize an empty min-heap, and current_sum = 0.
+
+Then, for each element (x, y, idx) in the sorted list:
+
+   1. answer[idx] = current_sum (since current_sum is the sum of top k elements from the heap, which contains all elements with nums1 <x)
+
+   2. Add y to the heap:
+
+      a. If the heap has size <k: push y, current_sum += y
+
+      b. Else: if y > heap[0] (the smallest in the heap), then pop the smallest (current_sum -= heap[0]), push y (current_sum += y), else do nothing.
+
+Wait, but in Python, heapq is a min-heap. So the heap[0] is the smallest.
+
+Wait, but when we have to maintain the top k elements, the heap should be a min-heap of the k largest elements. So for example, if we have k=2, and the elements are [10, 20, 30], then the heap (min-heap) will be [10, 20] → heap[0] is 10. When a new element 30 comes, we pop 10 and add 30 → sum becomes 20+30=50.
+
+Yes, that's correct.
+
+So the algorithm:
+
+- Sort the list of (nums1[i], nums2[i], i) by nums1[i]
+
+- Initialize a min-heap (heapq)
+
+- current_sum = 0
+
+- answer = [0] * n
+
+- For each element (x, y, idx) in the sorted list:
+
+   - answer[idx] = current_sum
+
+   - If len(heap) < k:
+
+       heapq.heappush(heap, y)
+
+       current_sum += y
+
+   - Else:
+
+       if y > heap[0]:
+
+           current_sum -= heap[0]
+
+           heapq.heappop(heap)
+
+           heapq.heappush(heap, y)
+
+           current_sum += y
+
+       # else, do nothing
+
+Wait, but this adds y to the heap only if it's larger than the smallest in the heap.
+
+But this approach will build a min-heap that contains the top k elements so far. However, in the case where len(heap) is less than k, we add all elements.
+
+But in the example 1:
+
+Let's simulate the steps.
+
+sorted list is:
+
+(1, 30, 2)
+
+(2, 20, 1)
+
+(3, 50, 4)
+
+(4, 10, 0)
+
+(5, 40, 3)
+
+Processing the first element (1,30,2):
+
+answer[2] = current_sum (0).
+
+Then, heap is empty, len=0 <k=2 → push 30, current_sum=30.
+
+Second element (2,20,1):
+
+answer[1] = current_sum=30.
+
+Now, len(heap)=1 <k=2 → push 20, current_sum=50.
+
+Third element (3,50,4):
+
+answer[4] = 50.
+
+len(heap)=2 ==k=2.
+
+Compare 50 with heap[0] (20).
+
+50>20 → pop 20 (current_sum becomes 50-20=30), push 50 (current_sum becomes 30+50=80). Heap becomes [30,50] (as min-heap, [30,50] → the smallest is 30).
+
+Fourth element (4,10,0):
+
+answer[0] = current_sum =80.
+
+len(heap)=2 → compare 10 with heap[0] (30). 10<30 → do nothing. Heap remains [30,50].
+
+Fifth element (5,40,3):
+
+answer[3] = current_sum=80.
+
+Now, compare 40 with heap[0] (30). 40>30 → pop 30 (current_sum=80-30=50), push 40 → heap becomes [40,50] (min-heap order), current_sum=50+40=90? Wait, wait no.
+
+Wait, when adding the fifth element (40), the heap currently is [30,50]. We check if 40>heap[0] (30). Yes. So:
+
+current_sum = current_sum - heap[0] → 80-30=50.
+
+Then push 40: the heap becomes [40,50] (min-heap: 40 is the root). current_sum +=40 →50+40=90.
+
+But in the example, the answer for i=3 (original index 3) is 80. Wait, this is a problem.
+
+Wait in the example, the answer for i=3 (nums1=5) is 80 (50+30). But according to the simulation, the answer for idx=3 (the fifth element) is set to current_sum, which before processing the fifth element is 80 (from the fourth element's processing).
+
+Wait, the steps:
+
+When processing the fifth element (5,40,3):
+
+   - First, set answer[3] = current_sum (which is 80, from the previous elements).
+
+   - Then, add the element 40 to the heap.
+
+So the answer for idx=3 is 80, which is correct.
+
+Ah, right! The current_sum is the sum for the elements added so far, which is the sum of the top k elements from the elements processed before this element. So when we process each element in sorted order, we first set the answer for the current index to the current_sum, then add the current nums2 to the heap.
+
+In the simulation, after processing the fourth element (idx=0), the current_sum is 80. Then when processing the fifth element (idx=3), answer[3] is set to 80. Then we add 40 to the heap, which would change the heap (current_sum becomes 80 -30 +40=90?), but the answer for idx=3 is already set to 80.
+
+Wait, yes. Because the answer for idx=3 depends on the elements with nums1 <5 (which are all the previous four elements). When we process the fifth element (nums1=5), the current_sum is the sum of the top k elements from the previous elements (the four elements with nums1 <5), which are the ones processed before this element.
+
+So in the simulation:
+
+After processing the first four elements, current_sum is 80. So the fifth element's answer is 80.
+
+Then we add 40 to the heap. Which may change the heap (for future elements), but the answer for the current element is already set.
+
+This is correct.
+
+So the algorithm seems correct.
+
+Now, let's check the simulation:
+
+For the fifth element (5,40,3):
+
+- answer[3] = current_sum (80).
+
+- Then add 40 to the heap.
+
+The heap is [30,50] (size 2). We push 40. But since heap size is k=2, we check if 40 > heap[0] (30). Yes. So pop 30 (current_sum becomes 80-30=50), push 40 (current_sum becomes 50+40=90). The heap is now [40,50].
+
+But the answer for the fifth element is set to 80, which is correct.
+
+Yes.
+
+In the example 2: all nums1 are 2. So sorted list has all elements with nums1=2. For each element:
+
+   - When processing the first element (nums1=2), current_sum is 0 (since the heap is empty before processing this element).
+
+   - Then add nums2[i] to the heap.
+
+But for the answer of the first element (i), it's current_sum (0). Similarly for all others. So output is [0,0,0,0].
+
+So the algorithm handles example 2 correctly.
+
+Another test case: what if k=0? But the problem states k is a positive integer (k>=1), so we don't have to handle k=0.
+
+Now, let's think about the code.
+
+We need to:
+
+- Create the list of tuples.
+
+- Sort by nums1.
+
+- Initialize a heap and current_sum.
+
+- For each tuple in the sorted list:
+
+   - answer[idx] = current_sum
+
+   - If len(heap) <k: add to heap, update current_sum.
+
+   - Else: if y > heap[0], pop and push, update current_sum.
+
+Wait, but the 'else' part can be optimized.
+
+In Python, heapq can be used as a min-heap.
+
+Wait, the code would look like:
+
+import heapq
+
+def findMaxSum(self, nums1: List[int], nums2: List[int], k: int) -> List[int]:
+    n = len(nums1)
+    arr = [(nums1[i], nums2[i], i) for i in range(n)]
+    arr.sort(key=lambda x: x[0])
+    
+    heap = []
+    current_sum = 0
+    ans = [0] * n
+    
+    for num1, num2, idx in arr:
+        ans[idx] = current_sum
+        
+        if len(heap) < k:
+            heapq.heappush(heap, num2)
+            current_sum += num2
+        else:
+            if num2 > heap[0]:
+                current_sum -= heap[0]
+                heapq.heappop(heap)
+                heapq.heappush(heap, num2)
+                current_sum += num2
+    return ans
+
+Wait, but in the case where we have k=1, this should work.
+
+Wait, let's test with a small example.
+
+Suppose nums1 = [2,1], nums2 = [10,20], k=1.
+
+sorted arr is [(1,20,1), (2,10,0)]
+
+Processing first element (1,20,1):
+
+ans[1] = current_sum (0).
+
+heap has size 0 <k=1 → push 20, current_sum=20.
+
+Second element (2,10,0):
+
+ans[0] = current_sum=20.
+
+Now, heap size is 1 ==k. Check if 10 > heap[0] (20)? No. So do nothing.
+
+The answer is [20,0]. Wait but for i=0 (nums1=2), the j with nums1[j] <2 is j=1 (nums1=1). So the top 1 is 20. So answer[0] is 20. For i=1 (nums1=1), no j satisfies, so 0. Correct.
+
+Yes.
+
+Another test case: nums1 = [3,2,1], nums2 = [1,2,3], k=2.
+
+sorted arr is [(1,3,2), (2,2,1), (3,1,0)]
+
+Processing:
+
+1. (1,3,2):
+
+   ans[2] =0.
+
+   heap is empty, push 3. current_sum=3.
+
+2. (2,2,1):
+
+   ans[1] =3.
+
+   heap size 1 <2 → push 2. current_sum=5.
+
+3. (3,1,0):
+
+   ans[0] =5.
+
+   heap has size 2, check if 1 > heap[0] (2)? No. Do nothing.
+
+So answer is [5,3,0].
+
+Let's verify:
+
+For i=0 (nums1=3), j where nums1[j] <3: j=0 (no), j=1 (nums1=2), j=2 (nums1=1). So nums2[j] are 2 and 3. Top 2 sum is 5. Correct.
+
+For i=1 (nums1=2), j where nums1[j] <2: j=2 (nums1=1). nums2[j] is 3. Sum is 3. Correct.
+
+For i=2 (nums1=1), no j →0. Correct.
+
+Yes, the code works.
+
+Potential issues:
+
+- The heapq in Python is a min-heap. So when we push elements, the heap is ordered as a min-heap.
+
+- When we pop the smallest from the heap (for the 'else' case), we subtract it from current_sum.
+
+- The code as written uses a 'if len(heap) <k' and 'else' block.
+
+But in the code above, after processing the current element, we add its nums2 to the heap. But for the next elements, the heap will have the top k elements from the previous elements.
+
+Yes.
+
+But in the code, the answer for the current element is set before adding the current nums2 to the heap. Which is correct, because the current element's answer depends on elements with smaller nums1 (so elements processed before it in the sorted list).
+
+So the code should be correct.
+
+Let's check for the first example.
+
+Example 1:
+
+Input: nums1 = [4,2,1,5,3], nums2 = [10,20,30,40,50], k = 2
+
+In the code:
+
+arr = sorted by nums1:
+
+[(1, 30, 2), (2, 20, 1), (3, 50, 4), (4, 10, 0), (5,40,3)]
+
+Processing:
+
+1. (1,30,2): ans[2] =0. heap = [30], current_sum=30.
+
+2. (2,20,1): ans[1] =30. heap size 1 <2 → push 20. current_sum=50. heap is [20,30] (min-heap, so heap[0]=20).
+
+3. (3,50,4): ans[4]=50. heap size=2. 50>20 → pop 20 (current_sum=50-20=30), push 50. current_sum=30+50=80. heap is [30,50] (min-heap, heap[0]=30).
+
+4. (4,10,0): ans[0] =80. heap size=2. 10>30? No. So do nothing.
+
+5. (5,40,3): ans[3] =80. heap size=2. 40>30 → pop 30 (current_sum=80-30=50), push 40. current_sum=50+40=90. heap becomes [40,50].
+
+So answer is [80, 30, 0, 80, 50] → which matches the example.
+
+Yes!
+
+So the code should be correct.
+
+Now, what about when k=1 and the heap has exactly k elements.
+
+Let's say k=1, and we have a heap with one element.
+
+The code for the 'else' case (len(heap) ==k) checks if num2 > heap[0]. If yes, replace the heap's smallest (which is the only element) with num2.
+
+Yes.
+
+Another edge case: k=n.
+
+For example, n=3, k=3.
+
+Processing all elements. For each element, the answer is the sum of the top k (3) elements from the previous elements.
+
+In this case, for the first element, the answer is 0. For the second element, the answer is the sum of 1 element. For the third element, the sum of all 2 previous elements.
+
+Yes.
+
+The code handles it because for each element, it adds to the heap only if the heap size is less than k (3), and for the third element, the heap size is 2 (less than 3), so it adds the third element.
+
+Wait, no: for each element in sorted order (assuming three elements):
+
+sorted list: [a, b, c]
+
+First element (a):
+
+ans =0 → then add to heap. size=1.
+
+Second element (b):
+
+ans = current_sum (a). then add b → size=2.
+
+Third element (c):
+
+ans = current_sum (a+b). then add c → size=3.
+
+Yes.
+
+So the code works.
+
+Time complexity: O(n log k) for each of the n elements, which is acceptable for n=1e5.
+
+So the code should pass.
+
+Let me check if there's any mistake in the code.
+
+In Python, the heap is a list, and we use heapq.heappush and heapq.heappop.
+
+The code:
+
+for num1, num2, idx in arr:
+    ans[idx] = current_sum
+    if len(heap) < k:
+        heapq.heappush(heap, num2)
+        current_sum += num2
+    else:
+        if num2 > heap[0]:
+            current_sum -= heap[0]
+            heapq.heappop(heap)
+            heapq.heappush(heap, num2)
+            current_sum += num2
+
+Yes.
+
+Wait, but in the code, after popping and pushing, the heap is a min-heap. So heap[0] is the smallest in the heap.
+
+Yes.
+
+This should be correct.
+
+Another thing to consider: if k=0, but the problem states k>=1.
+
+So the code is ready.
+
+Let me write it.
+
+We need to import heapq.
+
+The function signature is:
+
+def findMaxSum(self, nums1: List[int], nums2: List[int], k: int) -> List[int]:
+
+So the code:
+</think>
+
+To solve this problem, we need to efficiently compute for each index `i` in the arrays `nums1` and `nums2` the maximum sum of at most `k` values from `nums2` at indices `j` where `nums1[j]` is less than `nums1[i]`. Given the constraints where `n` can be as large as \(10^5\), a brute-force approach is infeasible. Instead, we leverage sorting and a min-heap to achieve an optimal solution.
+
+### Approach
+1. **Sorting by `nums1`**: We first create a list of tuples containing `(nums1[i], nums2[i], i)` for each index `i`. This list is sorted in ascending order based on `nums1[i]`. This ensures that when we process each element, all previously processed elements have `nums1[j]` less than the current element's `nums1[i]`.
+
+2. **Min-Heap for Top `k` Elements**: As we process each element in the sorted list, we maintain a min-heap of size at most `k`. The heap helps efficiently track the top `k` largest values of `nums2` encountered so far (from elements with smaller `nums1` values).
+
+3. **Tracking Current Sum**: Alongside the heap, we maintain a running sum (`current_sum`) of the top `k` elements in the heap. For each element in the sorted list:
+   - The answer for the current element's original index is set to `current_sum` (the sum of the top `k` elements processed so far, which are all elements with smaller `nums1` values).
+   - We then update the heap: if the heap has fewer than `k` elements, we add the current `nums2` value; otherwise, if the current `nums2` value is larger than the smallest value in the heap, we replace the smallest value with the current value and adjust `current_sum` accordingly.
+
+This approach efficiently processes each element in \(O(\log k)\) time per element, leading to an overall time complexity of \(O(n \log k)\), which is optimal for the given constraints.
+
+### Solution Code
+```python
+import heapq
+from typing import List
+
+class Solution:
+    def findMaxSum(self, nums1: List[int], nums2: List[int], k: int) -> List[int]:
+        n = len(nums1)
+        arr = [(nums1[i], nums2[i], i) for i in range(n)]
+        arr.sort(key=lambda x: x[0])
+        
+        heap = []
+        current_sum = 0
+        ans = [0] * n
+        
+        for num1, num2, idx in arr:
+            ans[idx] = current_sum
+            
+            if len(heap) < k:
+                heapq.heappush(heap, num2)
+                current_sum += num2
+            else:
+                if num2 > heap[0]:
+                    current_sum -= heap[0]
+                    heapq.heappop(heap)
+                    heapq.heappush(heap, num2)
+                    current_sum += num2
+        
+        return ans
+```
+
+### Explanation
+1. **Initialization**: We start by creating a list of tuples `(nums1[i], nums2[i], i)` for each index `i` in the input arrays.
+2. **Sorting**: The list is sorted based on `nums1[i]` in ascending order. This allows us to process elements from smallest to largest `nums1` values.
+3. **Heap Processing**: 
+   - For each element in the sorted list, we set the answer for its original index to `current_sum`, which is the sum of the top `k` `nums2` values from elements processed so far (those with smaller `nums1` values).
+   - If the heap has fewer than `k` elements, we add the current `nums2` value to the heap and update `current_sum`.
+   - If the heap is full (`k` elements), we check if the current `nums2` value is larger than the smallest value in the heap. If so, we replace the smallest value with the current value, adjust `current_sum` accordingly, and maintain the heap size at `k`.
+4. **Result Construction**: After processing all elements, the `ans` array contains the maximum sum for each index `i` as required.
+
+This approach efficiently handles the constraints by leveraging sorting and heap operations to ensure optimal performance, making it suitable for large input sizes.
+---- Visible feedback on Solution 2 ----
+Visible execution feedback:
+STATUS: visible_failed_wrong_answer
+
+OBSERVED:
+Wrong answer on a shown public/sample test.
+
+DETAIL:
+Input:
+[2, 2, 2, 2]
+[3, 1, 2, 3]
+1
+Expected output:
+[0, 0, 0, 0]
+Actual output:
+[0, 3, 3, 3]
+
+CHECK:
+Use this visible execution result to identify possible bugs, but do not overfit only to the shown public/sample test. Hidden tests are not available.
+
+---- Solution 3 ----
+Okay, let's try to figure out how to solve this problem. So, we have two arrays, nums1 and nums2, each of length n, and a positive integer k. For each index i, we need to find all indices j where nums1[j] < nums1[i], and then pick at most k values from nums2[j] at those indices to maximize the total sum. Then return an array of size n with those sums.
+
+Hmm. Let's think about the examples. In example 1, for i=0, nums1[i] is 4. The indices j where nums1[j] < 4 are j=1 (2), j=2 (1), j=4 (3). Then we take the two largest nums2 values from those: 50 (from j=4) and 30 (from j=2), so 80.
+
+So for each i, we need to get the top k nums2 values from the j where nums1[j] < nums1[i]. But n can be up to 1e5, so we need an efficient way.
+
+The problem is that if we do a naive approach for each i, we'd scan all j for each i, which would be O(n^2), which is too slow for 1e5 elements. So we need a better way.
+
+Let's think about how to preprocess the data.
+
+First, note that for each i, we want the j where nums1[j] < nums1[i]. So we need to process the arrays in a way that we can quickly get the top k nums2 values for a given threshold (nums1[i]).
+
+One idea is to sort the indices based on nums1. If we sort the pairs (nums1, nums2) by nums1, then for a given nums1[i], all the j with smaller nums1 would come before it in the sorted list.
+
+But wait, when we process in order of increasing nums1, for a particular i, the elements with nums1[j] < nums1[i] would be all the elements that come before i in the sorted list. But wait, if there are duplicates in nums1, then we have to be careful.
+
+Wait, in the problem statement, for j where nums1[j] < nums1[i]. So when nums1[j] is equal to nums1[i], they don't count. So we need to have, for each i, all the elements with nums1[j] strictly less than nums1[i].
+
+So the plan could be: sort the elements (nums1[j], nums2[j]) by nums1 in increasing order. Then, for each i, we want to consider all elements that come before i in this sorted order (but only those with nums1 less than current nums1[i]).
+
+Wait, but when we sort by nums1, elements with the same nums1 would be together. For example, if two elements have the same nums1, then when we process a particular i, we need to make sure that elements with equal nums1 are not included. So for a given i, we need all elements with nums1 strictly less than nums1[i].
+
+So perhaps, we can process the array in increasing order of nums1, and for each group of elements with the same nums1, we process them together.
+
+Let's say we create a list of (nums1, nums2, index) for each element. Then sort this list by nums1.
+
+Then, we can process the list from smallest nums1 to largest. For each element in this sorted list, the elements with smaller nums1 would be the ones that come before in the sorted list.
+
+But we need to track the top k nums2 values that have been encountered so far. Because for a given element (nums1, nums2, i), the elements with nums1 less than current nums1 are all the elements before it in the sorted list (assuming we sorted strictly). Wait, no. If there are multiple elements with the same nums1, then for the first element in the group with that nums1, the elements with nums1 less than it are the ones before the group. But for the next elements in the same group, they have the same nums1, so the elements before the group are the same as for the previous element.
+
+Hmm, perhaps we can do the following:
+
+1. Create a list of indices, sorted by nums1 in increasing order. But when nums1 is equal, we can process them in any order, since for those with the same nums1, their contributions (for higher indices in the sorted list) would not include the elements with equal nums1.
+
+Wait, for example: suppose we have nums1 = [2,2,3], nums2 = [1,2,3]. For i=0 (nums1=2), the j where nums1[j] < 2 is none. For i=1 (nums1=2), same. For i=2 (nums1=3), the j with nums1[j] <3 are j=0 and j=1.
+
+So, when we sort the elements by nums1, we can have the order as 2, 2, 3. Then, for the element with nums1=3, we can take all elements before it (the two 2s) to get the top k nums2.
+
+So the idea is: process the array in increasing order of nums1. For each element, we want to collect the top k nums2 values from all the elements processed so far (that have nums1 less than the current element's nums1).
+
+Wait, but when multiple elements have the same nums1, the ones processed first in the sorted list have the same nums1 as the next ones. So if we process all elements of a certain nums1 value together, then when we process a new group with higher nums1, we can take all the previous elements (from all groups with smaller nums1) to compute the sum.
+
+So steps:
+
+- Create a list of (nums1[i], nums2[i], i) for i in 0..n-1.
+
+- Sort this list by nums1.
+
+- Then, we want to process this sorted list, and for each element (x, y, idx), we want to know the sum of the top k y's from all elements with nums1 < x. Wait, but if multiple elements have the same nums1, then when we process them, the elements with the same nums1 as the current one are not to be included (since we need strictly less). So for example, when processing a group of elements with the same nums1, the previous groups (with smaller nums1) are the ones that contribute.
+
+So the idea is:
+
+- Initialize a data structure that can maintain the top k values (or the sum of top k) as we process elements in increasing order of nums1.
+
+Wait, but for each group (with same nums1), when we process the first element of the group, the data structure contains all elements with nums1 < current group's nums1. Then, for each element in the group (same nums1), the sum would be the same (since we don't include the elements in the same group, as they have nums1 equal to the current). So we can process the entire group at once.
+
+Wait, perhaps:
+
+- We can process the sorted list in order. For each element in the sorted list, if the current nums1 is greater than the previous, then we add the elements of the previous group into our data structure. Then, for the current group, the sum for each element is the sum of top k elements in the data structure.
+
+But how to track the top k elements efficiently?
+
+We can use a min-heap to keep track of the top k elements. Wait, the idea is that for the data structure, we want to be able to get the sum of the top k elements that have been processed so far (with nums1 < current).
+
+Wait, no. Wait, the data structure should contain all elements with nums1 less than the current element's nums1. So as we process the elements in sorted order, we add them to the data structure when we have a new group (with higher nums1) that we need to process.
+
+Wait, here's a better approach:
+
+Let's sort the elements by nums1. For each element (nums1_val, nums2_val, orig_idx), we process them in order.
+
+We can use a min-heap (priority queue) to keep track of the largest k nums2 values we have encountered so far (from elements with smaller nums1).
+
+Wait, the problem is: for a given current element, we need the sum of the top k nums2 values from all elements processed so far (with nums1 less than the current element's nums1). However, when the next element has the same nums1 as the previous, we don't want to include them in the data structure (since we need strictly less). So the data structure should only include elements with nums1 strictly less than the current.
+
+So the steps would be:
+
+1. Sort all elements by nums1. For elements with the same nums1, we process them in any order (since for each of them, the sum is based on elements with nums1 strictly less than their nums1).
+
+2. Initialize a min-heap (to track the largest k elements so far) and a variable to track the current sum.
+
+Wait, but we need to be able to add elements to the heap as we process them. Wait, no. Let's think:
+
+Suppose we process elements in increasing order of nums1.
+
+We can have a min-heap (priority queue) that stores the nums2 values of the elements we have processed (with nums1 less than the current). The heap size is up to k. But wait, we want the sum of the top k elements.
+
+Wait, the idea is that when we process a new element (with a higher nums1 than the previous ones), we can take the sum of the top k elements from all the elements with smaller nums1.
+
+But the problem is that we need to have the sum of the top k elements as we process each new element.
+
+So here's the plan:
+
+- We maintain a min-heap (priority queue) of size k, which holds the top k nums2 values so far.
+
+Wait, but if we have more than k elements, then the heap will have the k largest elements.
+
+Wait, for example:
+
+Initialize an empty min-heap.
+
+For each element in the sorted list (by nums1):
+
+   If the current element's nums1 is greater than the previous (so we have a new group), then we have processed all elements with nums1 less than this group's nums1. So for each element in this new group (with the current nums1), the sum would be the sum of the top k elements in the heap.
+
+But how do we update the heap?
+
+Wait, perhaps:
+
+Sort the elements by nums1.
+
+Initialize a min-heap (as a priority queue) to store the k largest nums2 values.
+
+Also, maintain a variable called 'sum_top' which holds the sum of the elements in the heap.
+
+Process the elements in sorted order:
+
+For each element in the sorted list:
+
+   current_value = nums2 of this element.
+
+   If the heap has size < k:
+
+       push current_value to the heap.
+
+       sum_top += current_value.
+
+   Else:
+
+       if current_value > heap[0] (the smallest element in the heap):
+
+           pop the smallest element from the heap.
+
+           sum_top -= heap[0]
+
+           push current_value.
+
+           sum_top += current_value
+
+   But wait, this is only for elements that we want to include in the top k. However, this approach is for building a heap of the top k elements as we process each element. But in our problem, for each element (i), we want the sum of the top k from all elements j with nums1[j] < nums1[i]. So when we process the sorted list, when we encounter a new element (with a higher nums1), then the heap contains all elements with nums1 less than or equal to the previous elements (but we need strictly less).
+
+Wait, here's the problem: the elements with the same nums1 as the current ones should not be included in the heap when we process the current group.
+
+Wait, so the approach would be:
+
+We process the elements in increasing order of nums1.
+
+When we start processing a new group (i.e., nums1 is greater than the previous group), then we have processed all elements with nums1 less than this group. For each element in this group, the sum is the sum_top of the heap.
+
+But how to handle the same nums1 values?
+
+Let's say we have a list sorted by nums1. Then, for each group of same nums1 values, we process all elements in the group first (without adding them to the heap) and then, after the group is processed (i.e., for all elements in the group), we add their nums2 values to the heap.
+
+Wait, no. Because for an element in a group with nums1 = x, we need to compute the sum based on elements with nums1 < x. So all elements in the group with nums1 = x are processed after we have added all elements with nums1 < x to the heap.
+
+Wait, perhaps the correct order is:
+
+- Sort by nums1.
+
+- Process the elements in order.
+
+- For each element in the sorted list:
+
+   - Check if it's the start of a new group (i.e., current nums1 is greater than previous). If so, then for the current group, the sum is sum_top (sum of top k from elements with nums1 < current).
+
+   - Then, add the current element's nums2 to the heap (but only after we've computed the sum for all elements in this group? Wait, no. Because the sum for the current group elements should be based on elements with nums1 strictly less than current group's nums1.
+
+Hmm. Let's take an example.
+
+Suppose we have sorted list:
+
+[(1, 10, 0), (1, 20, 1), (2, 30, 2), (2, 40, 3), (3, 50,4)]
+
+k=2.
+
+For elements with nums1=1 (group 1):
+
+We need to compute the sum for each of these elements. But since there's no elements with nums1 < 1, the sum for both is 0.
+
+Then, we add the two elements (nums2=10 and 20) to the heap.
+
+Now, for the group with nums1=2 (group 2):
+
+For each element in this group (nums1=2), the sum is the top 2 from the heap (10 and 20), sum is 30.
+
+Then, after processing the group 2, we add the two elements (30 and 40) to the heap.
+
+Wait, but the problem is that for group 2, when we process the first element in group 2, the sum is sum_top (from group 1's elements). Then, we add the group 2 elements to the heap.
+
+Wait, no. Because for group 2, the sum should be based on elements with nums1 < 2 (which are group 1). So the sum for each element in group 2 is sum_top (which is the sum of top k from group 1). Then, after processing all elements in group 2, we add their nums2 to the heap.
+
+Wait, but for group 2, the sum for each element (in group 2) is the same. So we can compute it once and assign to all elements in group 2.
+
+Similarly, for group 3 (nums1=3), the sum is sum_top after adding group 2 elements.
+
+So the steps are:
+
+1. Sort the elements by nums1.
+
+2. Initialize a min-heap (priority queue) and sum_top.
+
+3. Traverse the sorted list:
+
+   a. For each group (elements with same nums1), calculate the sum for the group (sum_top) and set the answer for their original indices.
+
+   b. After processing the entire group, add all the nums2 values from the group to the heap (to be used for groups with higher nums1).
+
+Wait, but how do we know when to add to the heap? Because the heap should contain the top k elements from all previous groups (with nums1 strictly less than the current group).
+
+Wait, here's the process:
+
+Let's sort the list of (nums1, nums2, index) by nums1.
+
+We start with an empty heap and sum_top = 0.
+
+We'll process the list and group elements by nums1.
+
+For each group:
+
+   For each element in the current group (same nums1), the answer for that index is the current sum_top (sum of top k from all previous groups).
+
+   Then, we add all nums2 values from this group to the heap (but only up to k? No, we need to add all, and then the heap will track the top k for the next groups).
+
+Wait, no. The problem is that the heap needs to keep the top k elements from all elements processed so far (but elements processed so far have nums1 <= current group's nums1). But for the next groups (with higher nums1), they want elements with nums1 strictly less than next group's nums1, which includes the current group (since current group has lower nums1 than next group).
+
+Wait, perhaps the correct approach is:
+
+As we process the list in order of increasing nums1, we want to maintain a heap of all elements with nums1 less than the current group's nums1. For that, we process the groups in order, and after each group is processed (i.e., after we compute the sum for all elements in the group), we add their nums2 values to the heap.
+
+Wait, let's take example 1.
+
+Example 1: nums1 = [4,2,1,5,3], nums2 = [10,20,30,40,50], k=2.
+
+First, create the list:
+
+index 0: (4,10)
+
+index 1: (2,20)
+
+index 2: (1,30)
+
+index 3: (5,40)
+
+index 4: (3,50)
+
+Sort by nums1:
+
+sorted list:
+
+(1,30,2), (2,20,1), (3,50,4), (4,10,0), (5,40,3)
+
+Now, process the list in order.
+
+Group 1: nums1=1. Current sum_top = 0. So answer for index 2 is 0.
+
+Then, add nums2=30 to the heap.
+
+Group 2: nums1=2. Current sum_top is 0 (since the heap has size 1, which is less than k=2). Wait, no. Wait, after adding the first group (nums1=1), the heap has [30]. sum_top =30.
+
+For group 2 (nums1=2), the answer for index 1 is the current sum_top (30? But in the example output, the answer for index 1 is 30, which matches. Wait, no: example 1's output for i=1 (which is index 1) is 30.
+
+Wait, the example says for i=1 (nums1 is 2), the indices j where nums1[j] < 2 is [2], which is the index 2 (nums1[j]=1). The nums2 there is 30. So sum is 30. So yes.
+
+But in our processing, after group 1 is processed (nums1=1), we added 30 to the heap. sum_top=30.
+
+Then, for group 2 (nums1=2), the sum_top is 30. So the answer for index 1 is 30.
+
+Then, after group 2 is processed, we add nums2=20 to the heap. The heap now has [20,30] (but as a min-heap, it's [20,30], with min at top).
+
+sum_top = 50.
+
+Group 3: nums1=3. For each element in this group (index 4), the sum_top is 50. But according to the example, the answer for i=4 (index4) is 50. Wait, example says for i=4 (nums1=3), the selected values are 30 and 20 (sum 50). Yes. So that's correct.
+
+After processing group3, add 50 to the heap. The heap now has [20,30,50]. But we only need to keep up to k=2 elements in the heap for the sum_top. Wait, no, because the sum_top is the sum of the top k elements in the heap.
+
+Ah, here's the key: as we add elements to the heap, we need to keep only the top k elements (the largest k). So the heap should be a min-heap of size k, so that the smallest element in the heap is the k-th largest.
+
+Wait, yes. So we need a min-heap of size k, where the heap stores the k largest elements so far.
+
+So when adding a new element:
+
+If the heap has size <k, push it and add to sum_top.
+
+Else, if the element is larger than the smallest in the heap, pop the smallest, subtract from sum_top, push the new element, add to sum_top.
+
+This way, the sum_top is the sum of the top k elements in the heap.
+
+So the algorithm would be:
+
+- Sort the elements by nums1.
+
+- Initialize a min-heap (heapq in Python is min-heap) to keep track of the top k elements. Also, sum_top = 0.
+
+- Traverse the sorted elements, grouping by nums1.
+
+For each group (current nums1 value):
+
+   - For each element in the group, the answer is sum_top (since sum_top is the sum of top k from elements with nums1 less than current group's nums1).
+
+   - Then, for each element in the group, add their nums2 to the heap (as per the heap rules: maintaining the top k elements).
+
+Wait, but in the previous example:
+
+After processing group1 (nums1=1), sum_top =30.
+
+Then, process group2 (nums1=2):
+
+   For all elements in group2 (which is index1), answer is sum_top (30).
+
+   Then, add nums2=20 to the heap.
+
+   Now, heap has [20,30]. sum_top = 50.
+
+Group3 (nums1=3):
+
+   For elements in group3 (index4), answer is sum_top (50).
+
+   Then, add 50 to the heap.
+
+   Now, since heap size is 2 (k=2), the heap is [20,30], sum_top=50. Adding 50: compare with heap[0]=20. 50>20, so pop 20, sum_top becomes 50 -20 +50 = 80. Heap becomes [30,50] (min-heap).
+
+Group4 (nums1=4):
+
+   For elements in group4 (index0), answer is sum_top=80.
+
+   Then, add 10 to the heap.
+
+   Heap size is 2. 10 < 30 (heap[0]=30), so heap remains [30,50], sum_top=80.
+
+Group5 (nums1=5):
+
+   For elements in group5 (index3), answer is sum_top=80.
+
+   Then add 40 to the heap. 40>30, so pop 30 (sum_top becomes 80-30+40=90), heap becomes [40,50], sum_top=90.
+
+Wait, but according to example 1, the output for index0 is 80, which matches. For index3 (i=3), the answer is 80, which matches.
+
+Wait, let's check:
+
+In the example, the output is [80,30,0,80,50].
+
+The indices:
+
+index0: 80
+
+index1: 30
+
+index2: 0
+
+index3: 80
+
+index4:50
+
+In the sorted list:
+
+Group1 (nums1=1): index2 → answer 0.
+
+Group2 (nums1=2): index1 → answer 30.
+
+Group3 (nums1=3): index4 → answer 50.
+
+Group4 (nums1=4): index0 → answer 80.
+
+Group5 (nums1=5): index3 → answer 80.
+
+Which matches the output.
+
+Yes! So the algorithm works.
+
+So the steps are:
+
+1. Create a list of tuples: (nums1[i], nums2[i], i) for i in range(n).
+
+2. Sort this list by nums1.
+
+3. Initialize a min-heap (heapq) and sum_top.
+
+4. Traverse the sorted list, grouping elements with the same nums1.
+
+5. For each group:
+
+   a. For every element in the group, the answer for the original index is sum_top.
+
+   b. Then, add each element's nums2 to the heap (maintaining heap size up to k and sum_top).
+
+Wait, but the sum_top is the sum of the top k elements in the heap. So when we add each nums2 value to the heap, we update sum_top accordingly.
+
+Let's outline the code steps.
+
+In Python, heapq is a min-heap. So we can use heapq.
+
+We need to track the sum_top.
+
+Also, since we need to process the sorted list in order, and group by nums1.
+
+We can iterate through the sorted list, and for each element, check if the nums1 is same as previous.
+
+So code:
+
+sorted_list = sorted( (nums1[i], nums2[i], i) for i in range(n) )
+
+current_num = sorted_list[0][0]
+
+group = []
+
+for val, num, idx in sorted_list:
+
+    if val == current_num:
+
+        group.append( (num, idx) )
+
+    else:
+
+        process group
+
+        current_num = val
+
+        group = [ (num, idx) ]
+
+process group
+
+Then, for each group:
+
+   For each element in group, set answer[idx] = sum_top
+
+   Then, add each num to the heap.
+
+But we need to process the groups in order.
+
+Wait, but the problem is that when adding the elements of the group to the heap, we do it after processing the group (so that the sum_top for the next groups includes the current group's elements).
+
+Let's write the code.
+
+In the code, we'll loop through the sorted list, and for each element, if it's part of the current group (same nums1 as previous), we keep adding to the group. When the nums1 changes, we process the previous group (set the answers), then add the group's nums2 to the heap.
+
+Wait, but the initial code for grouping:
+
+sorted_list = sorted( (nums1[i], nums2[i], i) for i in range(n) )
+
+current_val = None
+
+group = []
+
+for i in range(n):
+
+    if sorted_list[i][0] == current_val:
+
+        group.append( sorted_list[i] )
+
+    else:
+
+        if current_val is not None:
+
+            # process previous group
+
+            for val, num, idx in group:
+
+                ans[idx] = sum_top
+
+            # add the group's nums to the heap
+
+            for val, num, idx in group:
+
+                if len(heap) < k:
+
+                    heapq.heappush(heap, num)
+
+                    sum_top += num
+
+                else:
+
+                    if num > heap[0]:
+
+                        sum_top -= heapq.heappop(heap)
+
+                        heapq.heappush(heap, num)
+
+                        sum_top += num
+
+            group = [sorted_list[i]]
+
+        current_val = sorted_list[i][0]
+
+But this may not be efficient because the group is built by appending.
+
+Alternatively, we can loop through the sorted list and process each element in order, but group them.
+
+Wait, another way:
+
+We can use a pointer to traverse the sorted list, and for each element, check if it's the start of a new group.
+
+But for the code, perhaps the easiest is to loop through the sorted list and whenever the nums1 changes, process the previous group.
+
+Let's code step by step.
+
+First, create the sorted list.
+
+sorted_list = sorted( (nums1[i], nums2[i], i) for i in range(n) )
+
+ans = [0] * n
+
+heap = []
+
+sum_top = 0
+
+current_num = None
+
+i = 0
+
+while i < n:
+
+    current_num = sorted_list[i][0]
+
+    group = []
+
+    j = i
+
+    while j < n and sorted_list[j][0] == current_num:
+
+        group.append( sorted_list[j] )
+
+        j +=1
+
+    # process the group: set ans for each index in group
+
+    for val, num, idx in group:
+
+        ans[idx] = sum_top
+
+    # add the group's elements to the heap
+
+    for val, num, idx in group:
+
+        if len(heap) < k:
+
+            heapq.heappush(heap, num)
+
+            sum_top += num
+
+        else:
+
+            if num > heap[0]:
+
+                sum_top -= heapq.heappop(heap)
+
+                heapq.heappush(heap, num)
+
+                sum_top += num
+
+    i = j
+
+But wait, this might not be correct. For example, in the group, the sum_top for each element is the sum of the top k elements from all previous groups (elements with smaller nums1).
+
+This code should work.
+
+Let's test with example 1.
+
+sorted_list: [(1,30,2), (2,20,1), (3,50,4), (4,10,0), (5,40,3)]
+
+current_num starts as 1.
+
+group is [(1,30,2)]
+
+process group: ans[2] = sum_top (0).
+
+Then, add 30 to heap.
+
+heap: [30] (min-heap), sum_top=30.
+
+i becomes 1 (j=1).
+
+next current_num is 2.
+
+group: [(2,20,1)]
+
+ans[1] = sum_top (30).
+
+Add 20 to heap.
+
+heap size is 1 < k=2: push 20 → heap [20,30] (but min-heap, so the smallest is at top). Wait, in Python, heapq is a min-heap, so heap[0] is the smallest.
+
+sum_top is 30+20=50.
+
+i becomes 2.
+
+current_num=3.
+
+group: [(3,50,4)]
+
+ans[4] = 50.
+
+Add 50 to heap.
+
+heap has size 2. 50 > heap[0] (20), so pop 20, sum_top becomes 50-20 +50=80.
+
+heap becomes [30,50] → heap[0] =30.
+
+i=3.
+
+current_num=4.
+
+group: [(4,10,0)]
+
+ans[0] = 80.
+
+Add 10 to heap. 10 < heap[0] (30), so heap remains [30,50], sum_top=80.
+
+i=4.
+
+current_num=5.
+
+group: [(5,40,3)]
+
+ans[3] =80.
+
+Add 40 to heap. 40>30, so pop 30. sum_top becomes 80 -30 +40=90. heap becomes [40,50].
+
+So the ans array is [80, 30,0,80,50], which matches.
+
+Yes, this seems correct.
+
+Another example: example 2.
+
+Input: nums1 = [2,2,2,2], nums2 = [3,1,2,3], k = 1.
+
+sorted_list has four elements all with nums1=2.
+
+So the group is all four.
+
+sum_top starts at 0.
+
+So for all elements in the group, ans is 0.
+
+Then, add the nums2 values to the heap.
+
+For each element:
+
+First element (3):
+
+heap is size 0 <1 → add to heap. sum_top=3.
+
+Second element (1): 1 <= heap[0]=3? Yes. So not added. Wait, k=1.
+
+When adding the second element:
+
+len(heap) is 1, which is equal to k.
+
+Check if num > heap[0] → 1 >3? No. So nothing is added.
+
+Similarly for next elements (2 and 3).
+
+So for the first element (3), sum_top=3.
+
+Then the second element (1) is ignored.
+
+Third element (2): 2>3? No. So ignored.
+
+Fourth element (3): 3>3? No (since it's >=), so when comparing, the code checks if num > heap[0] (3). 3 is not greater than 3, so it's ignored.
+
+So after processing the group, the heap is [3], sum_top=3.
+
+But the output for all indices is 0.
+
+Yes, correct.
+
+So the code should work.
+
+Now, time complexity.
+
+Sorting takes O(n log n).
+
+The loop over n elements, each element is added to the heap once. Heap operations are O(log k) per element, so total O(n log k).
+
+k can be up to n, but log k is O(log n), so total time O(n log n), which is acceptable for n up to 1e5.
+
+So this should be within the time limit (1 second).
+
+Let's write the code.
+
+Note: We need to import heapq.
+
+The function signature is:
+
+def findMaxSum(self, nums1: List[int], nums2: List[int], k: int) -> List[int]:
+
+So the code:
+
+import heapq
+
+class Solution:
+
+    def findMaxSum(self, nums1: List[int], nums2: List[int], k: int) -> List[int]:
+
+        n = len(nums1)
+
+        sorted_list = sorted((nums1[i], nums2[i], i) for i in range(n))
+
+        ans = [0] * n
+
+        heap = []
+
+        sum_top = 0
+
+        i = 0
+
+        while i < n:
+
+            j = i
+
+            # Collect all elements with the same nums1
+
+            current_num = sorted_list[i][0]
+
+            while j < n and sorted_list[j][0] == current_num:
+
+                j +=1
+
+            # Process the current group (from i to j-1)
+
+            # For each element in the group, set ans to sum_top
+
+            for idx in range(i, j):
+
+                num_val = sorted_list[idx][1]
+
+                orig_idx = sorted_list[idx][2]
+
+                ans[orig_idx] = sum_top
+
+            # Add all nums2 values from this group to the heap
+
+            for idx in range(i, j):
+
+                num_val = sorted_list[idx][1]
+
+                if len(heap) < k:
+
+                    heapq.heappush(heap, num_val)
+
+                    sum_top += num_val
+
+                else:
+
+                    if num_val > heap[0]:
+
+                        sum_top -= heapq.heappop(heap)
+
+                        heapq.heappush(heap, num_val)
+
+                        sum_top += num_val
+
+            i = j
+
+        return ans
+
+Wait, but in the code above, when we process the group, we first set the ans for the group to sum_top, then add the nums2 values to the heap.
+
+This is correct, because sum_top is the sum of the top k elements from elements with nums1 strictly less than the current group's nums1.
+
+Yes.
+
+Wait, in the while loop, we collect all elements with the same nums1, set their answers to sum_top (which is the sum from previous groups), then add them to the heap.
+
+This matches the example.
+
+Let me test with example 1.
+
+In the code:
+
+sorted_list is [(1,30,2), (2,20,1), (3,50,4), (4,10,0), (5,40,3)]
+
+i starts at 0.
+
+First group: i=0 to 1 (j=1).
+
+current_num is 1.
+
+Loop over i to j-1 (0 to 0).
+
+ans[2] = sum_top (0).
+
+Then add 30 to heap.
+
+heap becomes [30], sum_top=30.
+
+i is set to j=1.
+
+Second group: current_num=2.
+
+Loop i=1 to j=2 (j=1+1=2).
+
+ans[1] = sum_top (30).
+
+Add 20 to heap.
+
+len(heap) is 1 <k=2 → push. heap is [20,30] (but as a min-heap, the smallest is 20), sum_top=50.
+
+i=2.
+
+Third group: current_num=3.
+
+ans[4] =50.
+
+Add 50: since heap len is 2, compare 50>20 → pop 20, sum_top=50-20+50=80. heap becomes [30,50].
+
+i=3.
+
+Fourth group: current_num=4.
+
+ans[0] =80.
+
+Add 10: len(heap)=2, 10<30 → do nothing. sum_top remains 80.
+
+i=4.
+
+Fifth group: current_num=5.
+
+ans[3] =80.
+
+Add 40: 40>30 → pop 30. sum_top=80-30+40=90. heap becomes [40,50].
+
+The ans array is [80,30,0,80,50], which is correct.
+
+Yes.
+
+So the code should work.
+
+But what about when k=0? But the problem states k is at least 1.
+
+The constraints say k >=1.
+
+Another edge case: when there are no elements with nums1 less than current, so sum_top remains 0.
+
+Yes.
+
+Let's test with example 2.
+
+Input: nums1 = [2,2,2,2], nums2 = [3,1,2,3], k=1.
+
+sorted_list is four elements, all nums1=2.
+
+sum_top is 0.
+
+For each element in the group, ans is 0.
+
+Then, add each nums2 to heap.
+
+First element (3): len(heap)=0 <1 → add. sum_top=3.
+
+Second element (1): len(heap)=1, 1>3? No → do nothing.
+
+Third element (2): 2>3? No → do nothing.
+
+Fourth element (3): 3>3? No (since it's not greater). So do nothing.
+
+So the heap is [3], sum_top=3.
+
+But the ans is [0,0,0,0].
+
+Yes.
+
+Another edge case: when k=1, and the first group has one element.
+
+Let's say nums1 = [1,2], nums2=[10,20], k=1.
+
+sorted_list: [(1,10,0), (2,20,1)]
+
+For group1 (i=0), ans[0] =0. Add 10 to heap. sum_top=10.
+
+For group2 (i=1), ans[1] =10. Add 20 to heap. Since heap has size 1, compare 20>10: pop 10, add 20. sum_top=20.
+
+Output: [0,10], which is correct.
+
+Yes.
+
+So the code seems to handle all cases.
+
+Let's write the code.
+
+Wait, the code I wrote uses 'heap' as a min-heap with heapq. So heap[0] is the smallest in the heap.
+
+In the code, for the else part:
+
+if num_val > heap[0]:
+
+Yes.
+
+This code should work.
+
+But in Python, heapq is a min-heap, so the smallest element is at index 0.
+
+Yes.
+
+I think this should be correct.
+
+Now, the code.
+
+But in the code above, when adding elements to the heap, we loop from i to j-1.
+
+Wait, the code as written:
+
+for idx in range(i, j):
+
+    num_val = sorted_list[idx][1]
+
+    orig_idx = sorted_list[idx][2]
+
+    ans[orig_idx] = sum_top
+
+Then, for the adding:
+
+for idx in range(i, j):
+
+    num_val = sorted_list[idx][1]
+
+    ...
+
+Yes.
+
+But we can optimize by not looping twice. But for clarity, this is acceptable.
+
+Let me write the code.
+
+But note that in Python, heapq is a min-heap. So when we push elements, it's a min-heap.
+
+Yes.
+
+Let's code it.
+
+The code:
+
+import heapq
+from typing import List
+
+class Solution:
+    def findMaxSum(self, nums1: List[int], nums2: List[int], k: int) -> List[int]:
+        n = len(nums1)
+        # Create a list of tuples: (nums1[i], nums2[i], i)
+        sorted_list = sorted((nums1[i], nums2[i], i) for i in range(n))
+        
+        ans = [0] * n
+        heap = []
+        sum_top = 0
+        i = 0
+        while i < n:
+            j = i
+            current_num = sorted_list[i][0]
+            # Collect all indices with the same nums1 value
+            while j < n and sorted_list[j][0] == current_num:
+                j += 1
+                
+            # For all elements in the current group, set their answer to sum_top
+            for idx in range(i, j):
+                orig_idx = sorted_list[idx][2]
+                ans[orig_idx] = sum_top
+                
+            # Add all nums2 values from this group to the heap
+            for idx in range(i, j):
+                num_val = sorted_list[idx][1]
+                if len(heap) < k:
+                    heapq.heappush(heap, num_val)
+                    sum_top += num_val
+                else:
+                    # If the current num is larger than the smallest in heap
+                    if num_val > heap[0]:
+                        sum_top -= heapq.heappop(heap)
+                        heapq.heappush(heap, num_val)
+                        sum_top += num_val
+            i = j
+            
+        return ans
+
+Wait, in the code, the heap is maintained as the top k elements from all elements processed so far (with nums1 strictly less than the current group). Because when we process the group, we first set the answer (sum_top is for previous groups), then add the current group's elements to the heap.
+
+Yes.
+
+Let me test this code with the examples.
+
+Yes.
+
+I think this should be correct.
+
+But wait, in the example where a group has multiple elements, the sum_top is the same for all in the group (since we set it before adding the group's elements to the heap).
+
+Yes.
+
+This should work.
+
+Let me run it on example 1.
+
+Yes.
+
+So the code is as above.
+
+Time complexity is O(n log n + n log k), which is acceptable.
+
+So the final code is this.
+</think>
+
+To solve this problem, we need to efficiently compute for each index `i` in the arrays `nums1` and `nums2` the maximum sum of at most `k` values from `nums2` at indices `j` where `nums1[j] < nums1[i]`. Given the constraints (with `n` up to 100,000), a brute-force approach would be infeasible, so we use a combination of sorting and a min-heap to optimize the solution.
+
+### Approach
+1. **Sorting by `nums1`**: We first create a list of tuples `(nums1[i], nums2[i], i)` for each index `i`, then sort this list by `nums1` in ascending order. This allows us to process elements in increasing order of `nums1`, ensuring that for any element `i`, all elements with `nums1[j] < nums1[i]` have already been processed.
+2. **Processing Groups**: We process elements in groups where each group consists of indices with the same `nums1` value. For each group:
+   - **Set Answers**: For each index in the current group, the answer is the current sum of the top `k` values from `nums2` of elements processed so far (which have `nums1` strictly less than the current group's `nums1`).
+   - **Update Heap**: We then add the `nums2` values of the current group to a min-heap. The heap maintains the top `k` largest values encountered so far. If the heap size is less than `k`, we simply add the new value. Otherwise, we replace the smallest value in the heap with the new value if it is larger, updating the sum accordingly.
+3. **Efficiency**: Sorting takes `O(n log n)` time. Each heap operation (insertion and extraction) takes `O(log k)` time, leading to an overall time complexity of `O(n log n + n log k)`, which is efficient for the problem constraints.
+
+### Solution Code
+```python
+import heapq
+from typing import List
+
+class Solution:
+    def findMaxSum(self, nums1: List[int], nums2: List[int], k: int) -> List[int]:
+        n = len(nums1)
+        sorted_list = sorted((nums1[i], nums2[i], i) for i in range(n))
+        
+        ans = [0] * n
+        heap = []
+        sum_top = 0
+        i = 0
+        while i < n:
+            j = i
+            current_num = sorted_list[i][0]
+            while j < n and sorted_list[j][0] == current_num:
+                j += 1
+                
+            for idx in range(i, j):
+                orig_idx = sorted_list[idx][2]
+                ans[orig_idx] = sum_top
+                
+            for idx in range(i, j):
+                num_val = sorted_list[idx][1]
+                if len(heap) < k:
+                    heapq.heappush(heap, num_val)
+                    sum_top += num_val
+                else:
+                    if num_val > heap[0]:
+                        sum_top -= heapq.heappop(heap)
+                        heapq.heappush(heap, num_val)
+                        sum_top += num_val
+            
+            i = j
+        
+        return ans
+```
+
+### Explanation
+1. **Sorting**: The list of tuples `(nums1[i], nums2[i], i)` is sorted by `nums1` to ensure we process elements in increasing order of `nums1`.
+2. **Group Processing**: For each group of indices with the same `nums1` value:
+   - **Answer Setting**: The current sum of the top `k` `nums2` values (from elements processed so far with smaller `nums1`) is assigned to each index in the current group.
+   - **Heap Maintenance**: The `nums2` values of the current group are added to a min-heap. The heap is adjusted to maintain only the top `k` values, ensuring that the sum (`sum_top`) remains the sum of these top `k` values.
+3. **Efficiency**: By leveraging sorting and heap operations, the solution efficiently processes each element in `O(log n)` time for sorting and `O(log k)` for heap operations, making it suitable for large input sizes as specified in the problem constraints.
+
+This approach ensures that for each index `i`, we quickly determine the maximum sum of up to `k` values from `nums2` at indices where `nums1[j] < nums1[i]`, meeting the problem's performance requirements.
+---- Visible feedback on Solution 3 ----
+Visible execution feedback:
+STATUS: visible_passed
+
+OBSERVED:
+Visible tests passed; no visible failure observed.
+
+DETAIL:
+No visible failure is available.
+
+CHECK:
+Still verify edge cases, constraints, and algorithmic complexity.
+
+---- Solution 4 ----
+Okay, let's break down this problem.
+
+We have two arrays, nums1 and nums2, each of length n. For each index i, we need to look at all j where nums1[j] < nums1[i]. Then, from the nums2 values at those j's, we want to pick at most k values that have the largest sum. The answer for i is that sum.
+
+The challenge is to do this efficiently for large n (up to 1e5).
+
+First, let's think about the straightforward approach. For each i, we can iterate over all j, check if nums1[j] < nums1[i], and then collect nums2[j] values. Then, from those, we take the top k and sum them. But this would be O(n^2) which is too slow for n=1e5.
+
+We need a smarter way.
+
+The key is to process the indices in an order that helps us efficiently build a data structure of nums2 values for smaller nums1.
+
+Idea: Process the indices in increasing order of nums1. Why? Because for a given i, we want all j with nums1[j] < nums1[i]. If we process from smallest nums1 to largest, then when we are at a particular index i, all the j's with nums1[j] < nums1[i] would have already been processed.
+
+But wait, the problem is that for each i, we want to query the sum of top k nums2 values from the set of indices j where nums1[j] < nums1[i]. So if we can maintain a data structure that holds the nums2 values of all j's we've processed so far (since they have smaller nums1), then for each i (processed in increasing order of nums1), we can get the top k sums.
+
+Wait, but the problem is that for a given i, we are considering all j where nums1[j] < nums1[i]. So if we sort the indices by nums1, then as we process from low to high, when we reach an index i, the data structure holds all j's with nums1[j] < current nums1[i] (since we process in increasing order, and we haven't added any j's with nums1[j] >= current).
+
+Wait, but in the problem statement, for each i, we are to find j's where nums1[j] < nums1[i]. So if we sort the indices by nums1, then for each i in the sorted order, the previous indices (in the sorted order) have nums1 <= current. But we want strictly less.
+
+Hmm. Let's think:
+
+Suppose we sort the indices by nums1 in increasing order. Then, for a given element at position i in the original array, when we process it, all the previous elements in the sorted list have nums1 <= current. But we want strictly less.
+
+So, we need to process in such a way that when we process a particular nums1 value, we have all the previous elements with smaller nums1 values.
+
+So, the plan is:
+
+1. Create a list of indices, sorted by nums1. If two have the same nums1, then we don't care about the order (since for same nums1, no j will satisfy nums1[j] < nums1[i] for that i).
+
+2. Then, as we iterate through this sorted list (in increasing order of nums1), we add the nums2 values of the current element into a data structure.
+
+3. For each element in the sorted list, when we add it, we can consider it for the next elements (with higher nums1). But for the current element, we want to compute the sum of top k nums2 values from all elements that have been added so far (which have nums1 strictly less than the current).
+
+Wait, no: When processing the sorted list in increasing order, the elements added so far have nums1 <= current. But we want for a given i (original index), to have all j where nums1[j] < nums1[i]. So when we process a particular element in the sorted list, the elements already added have nums1 <= current. But for the current element's "i" (the original index), we want to compute the sum for j's with nums1[j] < nums1[i]. So when the current element's nums1 is equal to some previous element, then those previous elements are not included (since we want strictly less). Therefore, we need to process the sorted list such that when we process a group of elements with the same nums1 value, we first compute the result for all these elements (using the data structure that has elements with strictly smaller nums1), and then add the current group's nums2 values to the data structure.
+
+Yes, that's a key point.
+
+For example: Suppose we have two elements with nums1 = 5. When we process the first one (in the sorted list), the data structure has elements with nums1 < 5. Then, when we process the second element with nums1=5, we again use the same data structure (which still has elements with nums1 <5), so the result for both is computed before adding their nums2 to the data structure.
+
+So the steps:
+
+- Create an array of tuples: (nums1[i], nums2[i], i) for each i.
+
+- Sort this array by nums1 in ascending order. If nums1 is equal, the order doesn't matter (we'll process all same nums1 at once).
+
+- Then, traverse this sorted array.
+
+- We maintain a data structure that can support:
+
+  a. Adding a new value (nums2[j])
+
+  b. Querying the sum of the top k values in the data structure.
+
+We need a data structure that can do these operations efficiently.
+
+In Python, we can use a heap or a balanced BST, but for the top k elements, a max-heap would be good, but for the top k sum, we can use a min-heap of size k.
+
+Wait, here's a common trick: To get the sum of the top k elements, we can maintain a min-heap of size k. The heap stores the k largest elements. The root is the smallest among them, so when we add a new element, if it's larger than the root, we pop the root and push the new element. Then the sum of the heap is the sum of top k.
+
+Yes. For example, if we have a min-heap of size k, the sum of all elements in the heap is the sum of top k.
+
+But how to handle the initial state? Initially, the heap is empty.
+
+For each element we add:
+
+- If the heap has less than k elements, push the element and add to the sum.
+
+- Else, if the element is greater than the current smallest (the root), pop the root (subtract its value from the sum), push the new element (add to sum), so the sum is updated.
+
+But wait, the problem says "at most k" values. So if there are less than k elements in the data structure, we take all.
+
+So the data structure needs to track the sum of the top min(k, size) elements.
+
+Wait, no: For the problem, when processing an index i (in the sorted list), we want the sum of the top k elements from the data structure (which contains all j's with nums1[j] < nums1[i]). So the data structure starts empty.
+
+As we process the sorted list:
+
+- For each group of indices with the same nums1 value:
+
+  a. For each index in this group, compute the sum of the top k elements in the current data structure (which has all elements with nums1 less than current).
+
+  b. Then, for each index in this group, set the answer for that index to this sum.
+
+  c. Then, add all nums2 values of this group to the data structure (so that future groups can include them).
+
+This way, when we process a group with a particular nums1 value, the data structure contains all elements with nums1 strictly less than this group's value.
+
+Yes.
+
+So steps in code:
+
+1. Preprocess the data:
+
+   indices = [(nums1[i], nums2[i], i) for i in range(n)]
+
+   sort by nums1.
+
+2. Initialize a min-heap (heapq) to track the top k elements. But we also need to track the sum of the heap.
+
+   Let's have a min-heap called `heap` (which is a min-heap in Python, so it gives the smallest element at the top).
+
+   Also, a variable `current_sum` that tracks the sum of the heap.
+
+   Initially, current_sum = 0, heap = [].
+
+3. Group the sorted list by nums1.
+
+   For example, the sorted list has:
+
+   [(a1, b1, i1), (a2, b2, i2), ...]
+
+   where a1 <= a2 <= ... 
+
+   So we can iterate through this list and group by a.
+
+4. For each group (same a):
+
+   For each element in the group (each (a, b, i)), the answer for index i is current_sum (the sum of the top k in the heap, which is the data structure for all previous smaller nums1).
+
+   Then, after processing all elements in the group, we add each b to the heap.
+
+Wait, no. Wait, for each group:
+
+   First, we process all the elements in this group: for each element (a, b, i), we use the current heap to get the top k sum (which is the answer for i).
+
+   Then, we add all the b's of this group into the heap.
+
+So:
+
+   for the sorted list:
+
+      i = 0
+
+      while i < len(sorted_list):
+
+          j = i
+
+          current_a = sorted_list[i][0]
+
+          current_group = []
+
+          while j < len(sorted_list) and sorted_list[j][0] == current_a:
+
+              current_group.append(sorted_list[j][1])  # the nums2 value
+
+              j += 1
+
+          # For all the indices in current_group (the original indices), the answer is current_sum
+
+          # But we need to record the answer for each original index.
+
+          # So, for each (a, b, idx) in current_group, set answer[idx] = current_sum.
+
+          # Then, add all b's in current_group to the heap.
+
+Wait, but the problem: when we have the current_sum, it's the sum of the top k from the heap (which has all the nums2 values from previous groups, i.e., with nums1 strictly less than current_a).
+
+Yes.
+
+So, the plan:
+
+   - Create an array `ans` of size n, initialized to 0.
+
+   - Sort the list of (nums1[i], nums2[i], i) by nums1.
+
+   - Initialize heap = [], current_sum = 0.
+
+   - For each group of same nums1:
+
+        For each element in the group (which are (a, b, idx)), set ans[idx] = current_sum.
+
+        Then, for each b in the group:
+
+            add to the heap as follows:
+
+                if len(heap) < k:
+
+                    heapq.heappush(heap, b)
+
+                    current_sum += b
+
+                else:
+
+                    # Compare b with the smallest in the heap (heap[0])
+
+                    if b > heap[0]:
+
+                        current_sum -= heap[0]
+
+                        heapq.heapreplace(heap, b)
+
+                        current_sum += b
+
+                    # else, do nothing (we don't add this b)
+
+   - After processing all groups, return ans.
+
+Wait, but wait: the heap is a min-heap. The heap maintains the top k largest elements. So each time we add a new element, we compare it to the smallest in the heap (the root).
+
+Yes.
+
+Let's test with example 1.
+
+Example 1:
+
+Input: nums1 = [4,2,1,5,3], nums2 = [10,20,30,40,50], k = 2
+
+First, sort the indices by nums1.
+
+The original indices 0-4 have nums1 as [4,2,1,5,3].
+
+So the sorted list by nums1:
+
+index 2: nums1=1, nums2=30
+
+index 1: nums1=2, nums2=20
+
+index 4: nums1=3, nums2=50
+
+index 0: nums1=4, nums2=10
+
+index 3: nums1=5, nums2=40
+
+So sorted list:
+
+[(1, 30, 2), (2, 20, 1), (3,50,4), (4,10,0), (5,40,3)]
+
+Processing in groups:
+
+First group: nums1=1 (only index 2)
+
+For this group:
+
+- current_sum is 0 (heap is empty). So all indices in this group have ans[i] = 0.
+
+Then, we add the nums2 values (30) to the heap.
+
+Heap becomes [30], current_sum = 30.
+
+Next group: nums1=2 (index 1).
+
+For this group, current_sum = 30. So ans[1] = 30.
+
+Then, add 20 to the heap.
+
+Since heap size is 1 < k=2, push 20. current_sum = 30 + 20 = 50.
+
+Heap is [20, 30] but in min-heap order: [20, 30].
+
+Next group: nums1=3 (index 4).
+
+For this group, ans[4] = current_sum =50.
+
+Then add 50 to heap.
+
+Current heap size is 2. Compare 50 with heap[0] (20). Since 50>20, replace.
+
+current_sum = 50 - 20 +50 = 80.
+
+Heap becomes [30,50] (min-heap: 30 at root).
+
+Next group: nums1=4 (index 0).
+
+ans[0] = current_sum =80.
+
+Add 10 to heap. Heap size is 2. Compare 10 with heap[0] (30). 10<30, so no change. current_sum remains 80.
+
+Next group: nums1=5 (index 3).
+
+ans[3] =80.
+
+Then add 40. Current heap is [30,50]. 40 is compared to 30. 40>30, so replace.
+
+current_sum =80 -30 +40=90.
+
+Wait, but in the example output, for i=3 (index 3) the output is 80. According to the example, it's 80.
+
+Wait, in the example:
+
+For i=3 (nums1=5), the answer is 80.
+
+In our processing:
+
+When processing group 5 (index3), the current_sum is 80. So ans[3] is set to 80. Then we add 40 to the heap.
+
+Yes.
+
+Wait, so for the example:
+
+Original answer array should be [80,30,0,80,50].
+
+Let's check:
+
+In the code:
+
+ans[0] is set when processing group 4 (nums1=4), which is 80.
+
+ans[1] is set when processing group 2 (nums1=2), which is 30.
+
+ans[2] is set when processing group 1 (nums1=1), which is 0.
+
+ans[3] is set when processing group 5 (nums1=5), which is current_sum=80.
+
+ans[4] is set when processing group3 (nums1=3), which is current_sum=50.
+
+Yes. So the output is [80,30,0,80,50], which matches.
+
+Another test: Example 2.
+
+nums1 = [2,2,2,2], nums2 = [3,1,2,3], k=1.
+
+Sorted list will have all nums1=2. So the group is all four indices.
+
+For each of them, the current_sum is 0 (since the heap is empty), so ans[i] =0 for all. Then, add all nums2 values (3,1,2,3) to the heap.
+
+k=1: the heap will keep only the largest.
+
+After adding:
+
+First, add 3: heap [3], sum=3.
+
+Then add 1: 1<3, so no change. sum remains 3.
+
+Add 2: 2<3, no change.
+
+Add 3: 3==3 (heap[0] is 3), but 3 is not greater than heap[0], so we don't add. Wait, in our code: when adding, if the heap size is k (1), and b > heap[0], then replace.
+
+But when adding the second 3: b=3, heap[0]=3. So 3 is not greater than 3, so we don't add. So after processing all elements, the heap remains [3], sum=3.
+
+But the answer for all four indices is 0.
+
+Yes. The output is [0,0,0,0].
+
+So the code seems to work.
+
+Now, let's code this.
+
+We need to:
+
+- Create the list of tuples.
+
+- Sort by nums1.
+
+- Iterate through the sorted list, grouping by nums1.
+
+- For each group, set the answer for each index in the group to current_sum.
+
+- Then, process each nums2 in the group: add to the heap and update current_sum.
+
+Let's code this.
+
+We'll use heapq. Note that in Python, heapq is a min-heap.
+
+The steps:
+
+1. Create list of (nums1[i], nums2[i], i) for each i.
+
+2. Sort this list by nums1.
+
+3. Initialize heap = [], current_sum = 0.
+
+4. ans = [0] * n.
+
+5. Then, iterate through the sorted list.
+
+   We need to group by the same nums1.
+
+   So:
+
+      sorted_list = sorted( [(nums1[i], nums2[i], i) for i in range(n)] , key=lambda x: x[0])
+
+      i = 0
+
+      while i < n:
+
+          j = i
+
+          current_num = sorted_list[i][0]
+
+          group = []
+
+          while j < n and sorted_list[j][0] == current_num:
+
+              group.append( (sorted_list[j][1], sorted_list[j][2]) )
+
+              j +=1
+
+          # Now, for each (nums2_val, idx) in group, set ans[idx] = current_sum.
+
+          for nums2_val, idx in group:
+
+              ans[idx] = current_sum
+
+          # Now, process the group: add nums2_val to heap.
+
+          for nums2_val in [item[0] for item in group]:
+
+              if len(heap) < k:
+
+                  heapq.heappush(heap, nums2_val)
+
+                  current_sum += nums2_val
+
+              else:
+
+                  if nums2_val > heap[0]:
+
+                      # replace the smallest with this nums2_val
+
+                      removed = heapq.heapreplace(heap, nums2_val)
+
+                      current_sum = current_sum - removed + nums2_val
+
+                  # else: do nothing
+
+          i = j
+
+6. Return ans.
+
+Wait, but in the group, we have (nums2_val, idx) for each element. So in the code above, we first process the group to set ans[idx] = current_sum, then add the nums2_val of the group to the heap.
+
+Yes.
+
+Let's test with example 1.
+
+In code:
+
+sorted_list is:
+
+[(1,30,2), (2,20,1), (3,50,4), (4,10,0), (5,40,3)]
+
+i=0:
+
+current_num =1.
+
+group = [(30,2)].
+
+set ans[2] = 0.
+
+Then, add 30 to heap.
+
+heap is [30], current_sum =30.
+
+i=j=1.
+
+next group: current_num=2.
+
+group is [(20,1)].
+
+set ans[1] =30.
+
+add 20 to heap.
+
+heap is [20,30] (min-heap, so 20 is root). current_sum=50.
+
+i=2.
+
+group: current_num=3, group has (50,4).
+
+ans[4] =50.
+
+add 50: since heap has size 2 (k=2), compare 50 > heap[0] (20) → yes.
+
+replace: removed = heapreplace(20,50) → 20 is popped, 50 added. current_sum =50 -20 +50=80.
+
+heap becomes [30,50], but min-heap: 30 is root.
+
+i=3.
+
+group: current_num=4, (10,0).
+
+ans[0]=80.
+
+add 10: heap size is 2. 10 <=30 → do nothing. current_sum remains 80.
+
+i=4.
+
+group: current_num=5, (40,3).
+
+ans[3]=80.
+
+add 40: compare 40>30 → yes.
+
+replace: remove 30, add 40. current_sum =80 -30 +40=90.
+
+But in the example, the output for index 3 is 80. So after processing, ans[3] is set to 80, which is correct.
+
+Yes.
+
+So the code seems correct.
+
+Let's code this.
+
+We have to be careful with the group processing.
+
+In code:
+
+We can do:
+
+sorted_list = sorted( [ (nums1[i], nums2[i], i) for i in range(n) ] , key=lambda x: x[0])
+
+Then process the sorted_list.
+
+We can also use itertools.groupby for grouping.
+
+Alternative approach: using groupby.
+
+But since n can be up to 1e5, grouping with a while loop is O(n).
+
+Let's code with groupby.
+
+In Python, itertools.groupby can group consecutive elements.
+
+Yes. So:
+
+import itertools
+
+But the problem states that the code must be in the function findMaxSum.
+
+Wait, the code starts with:
+
+def findMaxSum(self, nums1: List[int], nums2: List[int], k: int) -> List[int]:
+
+So we need to import itertools? Or can we do without?
+
+But the problem says "You may start by outlining your thought process. In the end, please provide the complete code in a code block".
+
+We can use itertools.groupby, but perhaps it's safer to do a manual grouping to avoid the import (since the code must be self-contained without imports? Wait, the problem says the solution should have the signature as given, but for the code block, we can include necessary imports.
+
+Wait, in Python, the standard library includes itertools. So in a real code, we can import itertools.
+
+But since the problem says to write the code, we'll include it.
+
+Alternatively, write the manual grouping.
+
+Let me think.
+
+If we use itertools.groupby, the code is concise.
+
+So:
+
+import itertools
+
+sorted_list = sorted( [(nums1[i], nums2[i], i) for i in range(n)] , key=lambda x: x[0] )
+
+Then:
+
+for key, group in itertools.groupby(sorted_list, key=lambda x: x[0]):
+
+    # for each group, which has same nums1
+
+    # first, for each element in group, set ans[idx] = current_sum.
+
+    for item in group:
+
+        ans[item[2]] = current_sum
+
+    # then process the group's nums2 values.
+
+    group_nums2 = [item[1] for item in group]
+
+    for num in group_nums2:
+
+        if len(heap) < k:
+
+            heapq.heappush(heap, num)
+
+            current_sum += num
+
+        else:
+
+            if num > heap[0]:
+
+                removed = heapq.heapreplace(heap, num)
+
+                current_sum = current_sum - removed + num
+
+But wait, in this code, the group is processed by key.
+
+Yes.
+
+But in Python, groupby requires a sorted list.
+
+Wait, the sorted_list is sorted by nums1.
+
+So we can do:
+
+Let's code it.
+
+First, import heapq and itertools.
+
+Wait, but the problem says the time limit is 1 second. The code should be efficient.
+
+The processing of each element is O(log k) for heap operations.
+
+Total time O(n log k), which is acceptable for n=1e5.
+
+Yes.
+
+Let's code it.
+
+Wait, in the group processing: for each group, we iterate over all items in the group to set the ans and to add to heap.
+
+The total number of operations is O(n), each heap operation is O(log k).
+
+So overall time O(n log k), which is acceptable.
+
+Let's code.
+
+But note: In Python, heapq does not support negative numbers. But we are using a min-heap, so we are correct.
+
+Let me check with example 1.
+
+But the code should work.
+
+Another possible corner case: k=0? But the constraints say k>=1. So no problem.
+
+So code:
+
+import heapq
+import itertools
+
+class Solution:
+    def findMaxSum(self, nums1: List[int], nums2: List[int], k: int) -> List[int]:
+        n = len(nums1)
+        # Create list of tuples (nums1[i], nums2[i], i)
+        arr = [(nums1[i], nums2[i], i) for i in range(n)]
+        arr.sort(key=lambda x: x[0])  # sort by nums1
+
+        # Initialize heap and current_sum
+        heap = []
+        current_sum = 0
+        ans = [0] * n
+
+        # Group by nums1
+        for key, group in itertools.groupby(arr, key=lambda x: x[0]):
+            # For each element in group, set answer
+            for item in group:
+                idx = item[2]
+                ans[idx] = current_sum
+
+            # Process the nums2 values in this group
+            group_nums2 = [item[1] for item in group]
+            for num in group_nums2:
+                if len(heap) < k:
+                    heapq.heappush(heap, num)
+                    current_sum += num
+                else:
+                    # if the current num is greater than the smallest in heap
+                    if num > heap[0]:
+                        removed = heapq.heapreplace(heap, num)
+                        current_sum = current_sum - removed + num
+            # Note: after processing the group, the heap now contains elements from previous groups with smaller nums1.
+        
+        return ans
+
+Wait, but let's test with example 2.
+
+nums1 = [2,2,2,2], nums2 = [3,1,2,3], k=1.
+
+arr is [(2,3,0), (2,1,1), (2,2,2), (2,3,3)].
+
+sorted, since all have the same nums1.
+
+groupby will group all together.
+
+current_sum starts at 0.
+
+For each index in group (all four), ans[idx] =0.
+
+Then, process group_nums2 = [3,1,2,3].
+
+First num=3: len(heap)=0 <1 → push, current_sum=3.
+
+Next num=1: len(heap)=1 ==k=1. Compare 1>heap[0] (3)? No. So do nothing.
+
+Next num=2: compare with 3: 2<3 → do nothing.
+
+Next num=3: compare with 3: 3>3? No (equal). So do nothing.
+
+Thus, heap remains [3], current_sum=3.
+
+The ans array is [0,0,0,0], which is correct.
+
+Yes.
+
+Another test case: what if k is larger than the number of elements in the heap?
+
+For example, when heap has size 2, k=3: then for each new element, we push (since heap size <3), so current_sum increases.
+
+Yes.
+
+Let me think about a case where the group has multiple elements.
+
+Let's say k=2.
+
+Group1 (nums1=1): nums2 = [5, 4]
+
+ans for group1 indices: 0.
+
+Add to heap:
+
+First num=5: heap [5], sum=5.
+
+Second num=4: heap size=1 <2 → push. heap [4,5] (min-heap: 4 at top), sum=9.
+
+Group2 (nums1=2): ans for indices in group2 =9.
+
+Add group2's nums2.
+
+Suppose group2 nums2 are [6,3].
+
+For 6: compare with heap[0]=4 → push. Replace? No, heap size is 2. current_sum becomes 9 -4 +6=11.
+
+Heap becomes [5,6] (min-heap:5).
+
+For 3: 3 <5 → no change.
+
+So ans for group2 is 9.
+
+Yes.
+
+This code should work.
+
+Let's check for possible errors.
+
+One possible error: after processing the group, the heap may have more than k elements? No, because in the code, for each num, we check if len(heap) <k. Otherwise, only add if num>heap[0]. So the heap will never have more than k elements.
+
+Yes.
+
+Another corner: when k=0. But the constraints say k>=1.
+
+So code is safe.
+
+Thus, the code should work.
+
+But wait, the problem says "for each index i from 0 to n-1". The answer for i is the sum.
+
+In our code, we process the sorted list, so we set ans[i] correctly.
+
+Yes.
+
+Let's run through the code.
+
+Possible improvements: Using a generator for group_nums2.
+
+But the code as written should be acceptable.
+
+Now, code in the required format.
+
+Note: In Python, the List type is from typing.
+
+So in the code block:
+
+We need to import List from typing if necessary.
+
+But the problem states that the solution should be in the format:
+
+```python
+def findMaxSum(self, nums1: List[int], nums2: List[int], k: int) -> List[int]:
+```
+
+So the code starts with:
+
+from typing import List
+import heapq
+import itertools
+
+But the problem says "You may start by outlining your thought process. In the end, please provide the complete code in a code block enclosed with ```."
+
+So the complete code is:
+
+```python
+import heapq
+import itertools
+from typing import List
+
+class Solution:
+    def findMaxSum(self, nums1: List[int], nums2: List[int], k: int) -> List[int]:
+        n = len(nums1)
+        arr = [(nums1[i], nums2[i], i) for i in range(n)]
+        arr.sort(key=lambda x: x[0])
+        
+        heap = []
+        current_sum = 0
+        ans = [0] * n
+        
+        for key, group in itertools.groupby(arr, key=lambda x: x[0]):
+            for item in group:
+                idx = item[2]
+                ans[idx] = current_sum
+            
+            group_nums2 = [item[1] for item in group]
+            for num in group_nums2:
+                if len(heap) < k:
+                    heapq.heappush(heap, num)
+                    current_sum += num
+                else:
+                    if num > heap[0]:
+                        removed = heapq.heapreplace(heap, num)
+                        current_sum = current_sum - removed + num
+        return ans
+```
+
+Wait, but the problem says "the time limit is 1 second". This code should be efficient.
+
+Let me check the time complexity.
+
+O(n log k) time for the heap operations. Since k <=n, and n is 1e5, log k is about 17, so total operations 1e5 * 17 ~ 1.7e6, which is acceptable.
+
+Yes.
+
+Another possible optimization: using a heap of size k. The code uses heapq.heapreplace which is O(log k), so it's efficient.
+
+Yes.
+
+Let me test the code with example 1.
+
+In example 1, the code returns [80,30,0,80,50], which matches.
+
+So I think this code is correct.
+
+But wait, in the code, when group_nums2 is processed, we loop over each num in the group.
+
+Yes.
+
+But what about the group's elements? The group is from itertools.groupby, so it's grouped by the same nums1.
+
+Yes.
+
+So the code should be correct.
+</think>
+
+To solve this problem, we need to efficiently compute for each index `i` in the arrays `nums1` and `nums2` the sum of the top `k` values from `nums2` at indices `j` where `nums1[j] < nums1[i]`. Given the constraints where `n` can be as large as $10^5$, a brute-force approach would be infeasible. Instead, we leverage sorting and a min-heap to achieve an optimal solution.
+
+### Approach
+1. **Problem Analysis**: For each index `i`, we need to consider all indices `j` such that `nums1[j] < nums1[i]`. From these indices, we select at most `k` values from `nums2` that maximize the sum.
+2. **Intuition**: By sorting the indices based on `nums1`, we can process each index in increasing order of `nums1`. For any index `i` during processing, all previously processed indices (with smaller `nums1` values) are candidates for the top `k` values in `nums2`.
+3. **Algorithm Selection**: 
+   - **Sorting**: First, we create a list of tuples `(nums1[i], nums2[i], i)` sorted by `nums1` in ascending order.
+   - **Group Processing**: We process the sorted list in groups where each group consists of indices with the same `nums1` value. For each group:
+     - **Set Answers**: The current sum of the top `k` values (from the min-heap) is assigned to all indices in the group (since these indices have `nums1` values equal to the current group's value, and no indices with smaller `nums1` have been processed yet).
+     - **Update Heap**: We then add the `nums2` values of the current group to a min-heap. The heap maintains the top `k` largest values encountered so far, and we update the sum accordingly.
+4. **Complexity Analysis**: 
+   - **Sorting**: $O(n \log n)$ time.
+   - **Heap Operations**: Each insertion and extraction operation on the heap takes $O(\log k)$ time. Since we process each element once, the total time is $O(n \log k)$.
+   - **Overall Complexity**: $O(n \log n + n \log k)$, which is efficient for $n \leq 10^5$.
+
+### Solution Code
+```python
+import heapq
+import itertools
+from typing import List
+
+class Solution:
+    def findMaxSum(self, nums1: List[int], nums2: List[int], k: int) -> List[int]:
+        n = len(nums1)
+        arr = [(nums1[i], nums2[i], i) for i in range(n)]
+        arr.sort(key=lambda x: x[0])
+        
+        heap = []
+        current_sum = 0
+        ans = [0] * n
+        
+        for key, group in itertools.groupby(arr, key=lambda x: x[0]):
+            for item in group:
+                idx = item[2]
+                ans[idx] = current_sum
+            
+            group_nums2 = [item[1] for item in group]
+            for num in group_nums2:
+                if len(heap) < k:
+                    heapq.heappush(heap, num)
+                    current_sum += num
+                else:
+                    if num > heap[0]:
+                        removed = heapq.heapreplace(heap, num)
+                        current_sum = current_sum - removed + num
+        return ans
+```
+
+### Explanation
+1. **Initialization**: We start by creating a list of tuples containing `nums1[i]`, `nums2[i]`, and the index `i` for each element.
+2. **Sorting**: The list is sorted based on `nums1` in ascending order to facilitate processing indices in increasing order of `nums1`.
+3. **Group Processing**: Using `itertools.groupby`, we process the sorted list in groups where each group contains indices with the same `nums1` value.
+4. **Answer Assignment**: For each index in the current group, we assign the current sum of the top `k` values (from the min-heap) as the answer. This sum represents the maximum sum achievable from `nums2` values of indices with `nums1` values strictly less than the current group's `nums1` value.
+5. **Heap Maintenance**: After processing all indices in the current group, we add their `nums2` values to a min-heap. The heap ensures we only keep the top `k` values, updating the current sum whenever a larger value is encountered.
+6. **Result Construction**: The answers for all indices are constructed and returned in the order corresponding to the original indices.
+
+This approach efficiently handles the constraints by leveraging sorting and heap operations to minimize the time complexity, making it suitable for large input sizes.
+---- Visible feedback on Solution 4 ----
+Visible execution feedback:
+STATUS: compile_error
+
+OBSERVED:
+The program failed to compile/parse.
+
+DETAIL:
+Error:
+SyntaxError: unterminated string literal (detected at line 9) (<candidate>, line 9)
+
+CHECK:
+Use this visible execution result to identify possible bugs, but do not overfit only to the shown public/sample test. Hidden tests are not available.
+
+Now write one improved solution. Return only a single Python code block enclosed with triple backticks.
