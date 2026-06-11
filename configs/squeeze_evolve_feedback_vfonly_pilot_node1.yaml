@@ -1,0 +1,43 @@
+# C-only Feedback-SE viability/compounding pilot (vfonly config). Clone of the formal LCBV6 run
+# (squeeze_evolve_loop5_32k_temp1_lcbv6_non_saturated.yaml) with ONE change: recombination operator
+# -> livecodebench-feedback-aggregate (additive; original operator untouched). loops=5, strip_think=false,
+# temp=1.0, update=replace, fitness=diversity, verifier-free (evaluation=livecodebench-none; hidden tests
+# applied OFFLINE only). Feedback = deterministic PUBLIC/sample-test execution on visible-failed candidates
+# only; requires env LCB_FB_SEED / LCB_FB_PUBLIC / LCB_FB_HARNESS. Serve vLLM TP=8 @ max_model_len 262144.
+run_name: tts_sft_se_feedback_vfonly_pilot_node1
+routing:
+  k: 4
+  population: 16
+  groups: 16
+  loops: 5
+  confidence_percentiles: []
+  fitness: diversity
+  selection: uniform
+  selection_temperature: 1.0
+  update: replace
+  lite_fraction: 0.0
+  lite_method: majority
+  recombination: livecodebench-feedback-aggregate
+  evaluation: livecodebench-none
+  task: code
+  generation_batch_size: 48
+  strip_think: false
+  seed: 1234
+models:
+  - name: Qwen/Qwen3-4B-Thinking-2507
+    base_url: http://localhost:8000/v1
+    api_key: EMPTY
+    endpoint: chat
+    max_tokens: 32768
+    temperature: 1.0
+    top_p: 0.95
+    max_concurrency: 48
+    extra_body:
+      top_k: 20
+retry:
+  request_timeout_seconds: 7200
+resume: true   # PINNED loop-0: a <run_name>_loop0.json checkpoint (subset of the strip=false rerun #1
+               # loop-0 population) is placed in checkpoint_dir; the orchestrator skips loop-0 generation
+               # and continues from loop 1 (resume-continue patch). No new loop-0 generation.
+checkpoint_dir: ./outputs/node1_lcb_feedback_se_vfonly_pilot/checkpoints
+metrics_path: ./outputs/node1_lcb_feedback_se_vfonly_pilot/metrics.json

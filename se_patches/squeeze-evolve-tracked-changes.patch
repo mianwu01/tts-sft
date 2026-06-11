@@ -1,0 +1,110 @@
+diff --git a/benchmarks/aime25/register.py b/benchmarks/aime25/register.py
+index 2228924..c886e58 100644
+--- a/benchmarks/aime25/register.py
++++ b/benchmarks/aime25/register.py
+@@ -28,3 +28,20 @@ def aime25_exact_match(candidates, gt, **kwargs):
+ @evaluation.register("aime25-none")
+ def aime25_none(candidates, gt, **kwargs):
+     return eval_none(candidates, gt, **kwargs)
++
++
++# Additive M5 feedback operator (answer-hidden verdict + margin-gated population consistency;
++# see _m5_feedback_aggregate.py). Original operators above are untouched. Loaded by file path
++# because benchmark register modules are exec'd standalone (no parent package).
++import importlib.util as _ilu  # noqa: E402
++import os as _os  # noqa: E402
++
++_m5_spec = _ilu.spec_from_file_location(
++    "math_m5_feedback_aggregate", _os.path.join(_os.path.dirname(__file__), "_m5_feedback_aggregate.py"))
++_m5_mod = _ilu.module_from_spec(_m5_spec)
++_m5_spec.loader.exec_module(_m5_mod)
++
++
++@recombination.register("aime25-m5-feedback-aggregate")
++def aime25_m5_feedback_aggregate(query, candidates, **kwargs):
++    return _m5_mod.m5_feedback_aggregate(query, candidates, **kwargs)
+diff --git a/benchmarks/hmmt25/register.py b/benchmarks/hmmt25/register.py
+index f2f1a09..f43bca7 100644
+--- a/benchmarks/hmmt25/register.py
++++ b/benchmarks/hmmt25/register.py
+@@ -28,3 +28,20 @@ def hmmt25_exact_match(candidates, gt, **kwargs):
+ @evaluation.register("hmmt25-none")
+ def hmmt25_none(candidates, gt, **kwargs):
+     return eval_none(candidates, gt, **kwargs)
++
++
++# Additive M5 feedback operator — shared implementation lives in benchmarks/aime25/ (one source
++# of truth); see that file for the frozen config. Original operators above are untouched.
++import importlib.util as _ilu  # noqa: E402
++import os as _os  # noqa: E402
++
++_m5_spec = _ilu.spec_from_file_location(
++    "math_m5_feedback_aggregate_hmmt",
++    _os.path.join(_os.path.dirname(__file__), "..", "aime25", "_m5_feedback_aggregate.py"))
++_m5_mod = _ilu.module_from_spec(_m5_spec)
++_m5_spec.loader.exec_module(_m5_mod)
++
++
++@recombination.register("hmmt25-m5-feedback-aggregate")
++def hmmt25_m5_feedback_aggregate(query, candidates, **kwargs):
++    return _m5_mod.m5_feedback_aggregate(query, candidates, **kwargs)
+diff --git a/src/squeeze_evolve/algorithm/orchestrator.py b/src/squeeze_evolve/algorithm/orchestrator.py
+index 2d8aacc..e5c1497 100644
+--- a/src/squeeze_evolve/algorithm/orchestrator.py
++++ b/src/squeeze_evolve/algorithm/orchestrator.py
+@@ -432,17 +432,28 @@ class RoutingOrchestrator:
+             np.random.seed(self.cfg.routing.seed)
+ 
+         state = [ProblemState(**p) for p in problems]
++        start_loop = 0
+         if self.cfg.resume:
+             last = load_latest_checkpoint(self._checkpoint_storage, self.cfg.run_name)
+             if last and "problems" in last:
+                 state = [ProblemState(**p) for p in last["problems"]]
++                # Continue from the loop AFTER the loaded checkpoint instead of
++                # regenerating loop 0 (lets us pin a fixed loop-0 population and
++                # re-run only the evolution loops).
++                try:
++                    start_loop = int(last.get("metrics", {}).get("loop", -1)) + 1
++                except (TypeError, ValueError):
++                    start_loop = 0
++                if start_loop > 0:
++                    logger.info("Resume: loaded checkpoint at loop %d; continuing from loop %d.",
++                                start_loop - 1, start_loop)
+ 
+         logger.info("Starting run %s: %d problems, %d loops", self.run_id, len(state), self.cfg.routing.loops)
+ 
+         all_metrics: list[LoopMetrics] = []
+         loop_iter = tqdm(
+-            range(self.cfg.routing.loops),
+-            total=self.cfg.routing.loops,
++            range(start_loop, self.cfg.routing.loops),
++            total=self.cfg.routing.loops - start_loop,
+             desc=f"Loops {self.run_id[:12]}",
+             unit="loop",
+             dynamic_ncols=True,
+diff --git a/src/squeeze_evolve/common.py b/src/squeeze_evolve/common.py
+index 9517962..f242a3b 100644
+--- a/src/squeeze_evolve/common.py
++++ b/src/squeeze_evolve/common.py
+@@ -81,7 +81,10 @@ def _normalize_math_answer(text: str) -> str:
+     if stripped.startswith("\\text{") and stripped.endswith("}"):
+         stripped = stripped[6:-1].strip()
+     numeric_match = re.fullmatch(r"[-+]?\d+", stripped)
+-    if numeric_match:
++    # Guard: code candidates can contain enormous integer literals; Python 3.11
++    # caps int()-from-string at 4300 digits (raises ValueError). A real answer is
++    # never that long, so fall through to the string form instead of crashing.
++    if numeric_match and len(stripped.lstrip("+-")) <= 4300:
+         return str(int(stripped))
+     return stripped.lower()
+ 
+@@ -101,7 +104,7 @@ def extract_boxed_math_answer(candidate: str) -> str:
+     if inline_boxed is not None:
+         return _normalize_math_answer(inline_boxed)
+     number_match = re.search(r"[-+]?\d+", final_line.replace(",", ""))
+-    if number_match:
++    if number_match and len(number_match.group(0).lstrip("+-")) <= 4300:
+         return str(int(number_match.group(0)))
+     return _normalize_math_answer(final_line)
+ 

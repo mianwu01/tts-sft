@@ -1,0 +1,9 @@
+# RESUME smoke: pinned loop-0 (subset of strip=false rerun #1) + feedback operator -> verifies the
+# orchestrator skips loop-0 and runs loop 1 with feedback. 2 problems, groups 4, loops 2, max_tokens 4096.
+run_name: tts_sft_se_feedback_vfonly_smoke
+routing: {k: 4, population: 16, groups: 4, loops: 2, confidence_percentiles: [], fitness: diversity, selection: uniform, selection_temperature: 1.0, update: replace, lite_fraction: 0.0, lite_method: majority, recombination: livecodebench-feedback-aggregate, evaluation: livecodebench-none, task: code, generation_batch_size: 16, strip_think: false, seed: 1234}
+models: [{name: Qwen/Qwen3-4B-Thinking-2507, base_url: http://localhost:8000/v1, api_key: EMPTY, endpoint: chat, max_tokens: 4096, temperature: 1.0, top_p: 0.95, max_concurrency: 16, extra_body: {top_k: 20}}]
+retry: {request_timeout_seconds: 7200}
+resume: true
+checkpoint_dir: ./outputs/node1_lcb_feedback_se_vfonly_smoke/checkpoints
+metrics_path: ./outputs/node1_lcb_feedback_se_vfonly_smoke/metrics.json
