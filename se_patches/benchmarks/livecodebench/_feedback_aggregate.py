@@ -188,6 +188,222 @@ def _v2_block(pub: dict):
     return None  # all_pass / unknown -> NO block
 
 
+# ---------------------------------------------------------------------------
+# B arm: stay-close, NO feedback (attribution control). Wording = the offline-validated
+# R0_stayclose prompt (probe_lcb_r2c_recombine.STAYCLOSE_NOFB), verbatim.
+# ---------------------------------------------------------------------------
+_STAYCLOSE_NOFB = """You are given a competitive programming problem and several candidate solutions.
+
+Some candidate solutions may be incorrect.
+
+Your task is to synthesize one correct Python solution.
+
+Correctness is the primary goal. However, to the extent possible, keep the final solution close to the candidate attempts. Prefer repairing, combining, and minimally modifying useful parts of the candidate solutions over writing a completely different solution from scratch. Only deviate substantially from the candidate attempts if their approaches are clearly flawed.
+
+Do not blindly trust any single candidate. Reason about the full problem constraints.
+
+Return only one complete Python code block enclosed with triple backticks. Do not include explanation outside the code block.
+
+Problem:
+{problem}
+
+Candidate solutions:
+{blocks}
+Now write one improved solution. Return only a single Python code block enclosed with triple backticks."""
+
+
+def stayclose_aggregate(query, candidates, **kwargs):
+    """B_stayclose_only: stay-close prompt, never any feedback."""
+    if not candidates:
+        return query
+    blocks = "".join(f"\n---- Solution {j} ----\n{(c or '').strip()}\n" for j, c in enumerate(candidates, 1))
+    _log({"id": _id_for(query), "n_candidates": len(candidates), "feedback_type": "none_stayclose_b",
+          "fallback": False})
+    return _STAYCLOSE_NOFB.format(problem=query, blocks=blocks)
+
+
+# ---------------------------------------------------------------------------
+# C2 arm: vfonly + DISAGREEMENT feedback for all-all_pass groups (gate-passed P1 design,
+# docs/LCB_DISAGREEMENT_PROBE.md). Visible-failed groups behave EXACTLY like vfonly; groups whose
+# parents all pass public tests get differential testing on cached probe inputs (INPUTS only, no
+# expected outputs) and — iff cross-candidate disagreement exists — one factual comparison section.
+# Extra env: LCB_FB_PROBE_INPUTS (jsonl {id, probe_inputs}), LCB_FB_PROBE_EXEC (lcb_probe_exec.py).
+# ---------------------------------------------------------------------------
+_D1_TOP = """You are given a competitive programming problem, several candidate solutions, and a cross-candidate execution comparison.
+
+Some candidate solutions may be incorrect. All candidates pass the shown public/sample tests, but they DISAGREE with each other on additional probe inputs. The correct outputs for these probe inputs are unknown — where candidates disagree, at most one behavior can be correct. Use the disagreements as evidence of latent bugs, but determine which logic is correct by reasoning about the problem statement; do not assume the majority behavior is correct. Hidden tests are not available.
+
+Your task is to synthesize one correct Python solution.
+
+Correctness is the primary goal. However, to the extent possible, keep the final solution close to the candidate attempts. Prefer repairing, combining, and minimally modifying useful parts of the candidate solutions over writing a completely different solution from scratch. Only deviate substantially from the candidate attempts if their approaches are clearly flawed.
+
+Do not blindly trust any single candidate or any single feedback item. Reason about the full problem constraints.
+
+Return only one complete Python code block enclosed with triple backticks. Do not include explanation outside the code block.
+
+Problem:
+{problem}
+
+Candidate solutions:
+{blocks}
+---- Cross-candidate execution comparison ----
+{comparison}
+
+Now write one improved solution. Return only a single Python code block enclosed with triple backticks."""
+
+_PROBE_STATE = {"inputs": None}
+_PROBE_EXEC_CACHE: dict[str, list | None] = {}
+
+
+def _probe_inputs_for(query: str):
+    if _PROBE_STATE["inputs"] is None:
+        m = {}
+        try:
+            with open(os.environ["LCB_FB_PROBE_INPUTS"]) as f:
+                for line in f:
+                    r = json.loads(line); m[r["id"]] = r.get("probe_inputs") or []
+        except Exception:  # noqa: BLE001
+            pass
+        _PROBE_STATE["inputs"] = m
+    pid = _id_for(query)
+    return (_PROBE_STATE["inputs"].get(pid) or None), pid
+
+
+_SEED_META = {"m": None}
+
+
+def _seed_meta_for(query: str):
+    """(testtype, fn_name) for the problem — needed by the probe exec harness."""
+    if _SEED_META["m"] is None:
+        m = {}
+        try:
+            with open(os.environ["LCB_FB_SEED"]) as f:
+                for line in f:
+                    r = json.loads(line)
+                    m[r["id"]] = (r.get("testtype") or "stdin", r.get("fn_name") or "")
+        except Exception:  # noqa: BLE001
+            pass
+        _SEED_META["m"] = m
+    pid = _id_for(query)
+    return _SEED_META["m"].get(pid, ("stdin", ""))
+
+
+def _probe_run(code: str, inputs: list, testtype: str, fn_name: str):
+    """Run code on probe inputs (no expected outputs) via the isolated harness. Cached by code+inputs."""
+    key = hashlib.md5((code + "\x00" + json.dumps(inputs) + testtype + fn_name).encode("utf-8", "ignore")).hexdigest()
+    if key in _PROBE_EXEC_CACHE:
+        return _PROBE_EXEC_CACHE[key]
+    cp = tp = None
+    try:
+        spec = json.dumps({"inputs": inputs, "testtype": testtype, "fn_name": fn_name, "time_limit": 6})
+        with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False) as cf:
+            cf.write(code); cp = cf.name
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tf:
+            tf.write(spec); tp = tf.name
+        p = subprocess.run([sys.executable, os.environ["LCB_FB_PROBE_EXEC"], cp, tp],
+                           capture_output=True, text=True, timeout=len(inputs) * 6 + 20)
+        out = p.stdout.strip().splitlines()
+        res = json.loads(out[-1])["results"] if out else None
+    except Exception:  # noqa: BLE001
+        res = None
+    finally:
+        for x in (cp, tp):
+            if x:
+                try: os.unlink(x)
+                except OSError: pass
+    _PROBE_EXEC_CACHE[key] = res
+    return res
+
+
+def _build_comparison(probe_inputs, per_parent_results, max_shown=2):
+    """Verbatim logic from probe_lcb_disagreement.build_comparison (gate-passed formatting)."""
+    def kindval(r):
+        return (r["kind"], r["value"] if r["kind"] == "output" else r["kind"])
+    rows = []
+    for ii, inp in enumerate(probe_inputs):
+        beh = [kindval(per_parent_results[p][ii]) for p in range(len(per_parent_results))]
+        clusters = {}
+        for p, b in enumerate(beh):
+            clusters.setdefault(b, []).append(p + 1)
+        if len(clusters) < 2:
+            continue
+        n_err = sum(1 for b in clusters if b[0] != "output")
+        rows.append((len(clusters), -n_err, ii, inp, clusters))
+    if not rows:
+        return None, 0
+    rows.sort(key=lambda r: (-r[0], r[1]))
+    parts = []
+    for _, _, ii, inp, clusters in rows[:max_shown]:
+        seg = [f"Probe input:\n{str(inp)[:400]}"]
+        for beh, members in sorted(clusters.items(), key=lambda kv: kv[1][0]):
+            who = ", ".join(f"Solution {m}" for m in members)
+            if beh[0] == "output":
+                seg.append(f"{who} output:\n{beh[1][:300]}")
+            elif beh[0] == "timeout":
+                seg.append(f"{who}: exceeded the time limit on this input")
+            else:
+                seg.append(f"{who}: raised an error on this input")
+        parts.append("\n".join(seg))
+    return "\n\n".join(parts), len(rows)
+
+
+def feedback_disagreement_aggregate(query, candidates, **kwargs):
+    """C2: vfonly behavior, plus disagreement comparison for all-all_pass groups."""
+    if not candidates:
+        return query
+    try:
+        tests = _tests_for(query)
+
+        def assess(c):
+            if tests is None:
+                return ("no_tests", None)
+            code = _extract_code(c)
+            if not code:
+                return ("no_code", _v2_block({"category": "compile_error",
+                        "first_fail": {"error": "No extractable Python code block."}}))
+            pub = _public_result(code, tests)
+            return (pub.get("category"), _v2_block(pub))
+
+        with ThreadPoolExecutor(max_workers=4) as ex:
+            assessed = list(ex.map(assess, candidates))
+        cats = [a[0] for a in assessed]
+
+        if any(fb is not None for _, fb in assessed):
+            # visible-failed group -> EXACT vfonly behavior
+            parts, n_blocks = [], 0
+            for j, (c, (cat, fb)) in enumerate(zip(candidates, assessed), 1):
+                parts.append(f"\n---- Solution {j} ----\n{(c or '').strip()}\n")
+                if fb is not None:
+                    parts.append(f"---- Visible feedback on Solution {j} ----\n{fb}\n"); n_blocks += 1
+            _log({"id": _id_for(query), "n_candidates": len(candidates), "categories": cats,
+                  "feedback_type": "visible_failed", "n_feedback_blocks": n_blocks,
+                  "n_allpass_omitted": cats.count("all_pass"), "tests_found": tests is not None, "fallback": False})
+            return _STAYCLOSE_TOP.format(problem=query, blocks="".join(parts))
+
+        # all parents all_pass -> differential testing on probe inputs
+        probe_inputs, pid = _probe_inputs_for(query)
+        comparison = None; n_dis = 0
+        if probe_inputs:
+            testtype, fn_name = _seed_meta_for(query)
+            with ThreadPoolExecutor(max_workers=4) as ex:
+                results = list(ex.map(lambda c: _probe_run(_extract_code(c), probe_inputs, testtype, fn_name),
+                                      candidates))
+            if all(r is not None for r in results):
+                comparison, n_dis = _build_comparison(probe_inputs, results)
+        blocks = "".join(f"\n---- Solution {j} ----\n{(c or '').strip()}\n" for j, c in enumerate(candidates, 1))
+        if comparison:
+            _log({"id": pid, "n_candidates": len(candidates), "categories": cats,
+                  "feedback_type": "disagreement", "n_disagreeing_inputs": n_dis, "fallback": False})
+            return _D1_TOP.format(problem=query, blocks=blocks, comparison=comparison)
+        _log({"id": pid, "n_candidates": len(candidates), "categories": cats,
+              "feedback_type": "none_allpass_agree", "fallback": False})
+        return _STAYCLOSE_TOP.format(problem=query, blocks=blocks)
+    except Exception as e:  # noqa: BLE001 — never break the SE loop
+        _log({"id": None, "n_candidates": len(candidates), "fallback": True, "error": f"{type(e).__name__}: {e}"})
+        parts = [f"\n---- Solution {j} ----\n{(c or '').strip()}\n" for j, c in enumerate(candidates, 1)]
+        return _STAYCLOSE_TOP.format(problem=query, blocks="".join(parts))
+
+
 def feedback_aggregate(query, candidates, **kwargs):
     if not candidates:
         return query  # loop 0 (matches the original operator's empty-candidate behaviour)

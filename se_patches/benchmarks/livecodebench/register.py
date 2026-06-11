@@ -48,3 +48,15 @@ _feedback_aggregate = _fa_mod.feedback_aggregate
 @recombination.register("livecodebench-feedback-aggregate")
 def livecodebench_feedback_aggregate(query, candidates, **kwargs):
     return _feedback_aggregate(query, candidates, **kwargs)
+
+
+@recombination.register("livecodebench-stayclose-aggregate")
+def livecodebench_stayclose_aggregate(query, candidates, **kwargs):
+    """B arm: stay-close wording, never any feedback (attribution control)."""
+    return _fa_mod.stayclose_aggregate(query, candidates, **kwargs)
+
+
+@recombination.register("livecodebench-feedback-disagreement-aggregate")
+def livecodebench_feedback_disagreement_aggregate(query, candidates, **kwargs):
+    """C2 arm: vfonly + disagreement comparison for all-all_pass groups (P1 gate-passed)."""
+    return _fa_mod.feedback_disagreement_aggregate(query, candidates, **kwargs)

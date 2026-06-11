@@ -1,4 +1,22 @@
-# Feedback-SE: Post-Pilot Review & Improvement Plan (PLAN ONLY — nothing launched)
+# Feedback-SE: Post-Pilot Review & Improvement Plan
+
+## EXECUTION STATUS (updated 2026-06-11 19:35 — plan now partially executed)
+| item | status | outcome / pointer |
+|---|---|---|
+| **P1 disagreement feedback** | ✅ **offline gate PASSED → in-loop RUNNING (C2)** | probe: 132/667 incidence (19.8%), **5W/0L p≈0.031, blind-spot stratum 0/58→2/58**, code-valid 132/132 (`docs/LCB_DISAGREEMENT_PROBE.md`). In-loop: `livecodebench-feedback-disagreement-aggregate` running on the pinned anchor (`docs/LCB_FEEDBACK_SE_C2_B_RUN.md`); loop-1 audit: 1348 visible_failed + **132 disagreement** + 536 silent, 0 fallbacks → coverage 66.9%→73.4%. |
+| **P4 B-arm attribution** | ✅ **launched (queued after C2)** | `livecodebench-stayclose-aggregate` (stay-close, no feedback), same pinned anchor → completes the A/B/C/C2 set; B−A = wording, C−B = vfonly feedback, C2−C = disagreement add-on. |
+| **P5 measurement hardening** | ✅ shipped | `scripts/lcb_grading.py`: persistent code-hash→verdict cache (`outputs/grading_cache/`) + retry-on-timeout-only; wired into `grade_feedback_se_loop.py` + `union_reach_feedback_se.py`; canonical `score_se_subset.py` untouched. Operator `extract_code` now **imports the grader's extractor** (verbatim-regex fallback) — the ~4% no_code mislabels are gone (loop-1 cross-check: 1348 vs 1349). |
+| method git-save | ✅ pushed | `se_patches/` snapshot (operators + SE tracked-diff + INSTALL.md) + scripts/configs/docs; branch `feedback-se-recombine-probe` @ `7d68f58`, P1 @ `ed6ddc3`. |
+| **P2 public-aware selection** | ⏸ pending | additive `selection` operator (registry verified open); revisit after C2/B results — pairs with P1 to avoid concentrating the blind spot. |
+| **P3 elitist/accumulate update** | ⏸ pending | run winner × `update:accumulate` (turnkey pipeline exists, task #12) or additive elitist-replace, after C2/B. |
+| **P6 dead ends** | ✖ closed | funnel, V3/V4 critics, CHECK-removed format, gold-aware, custom-fitness route. |
+
+Probe-input policy used for P1 (was an open ask): model-proposed inputs, INPUTS ONLY (no expected
+outputs anywhere), cached at `data/filtered/lcbv6_probe_inputs.jsonl` (125/126 problems, median 6).
+
+*(Original plan below, written before execution.)*
+
+---
 
 Synthesizes the Node1 vfonly multi-loop pilot (`LCB_FEEDBACK_SE_VFONLY_PILOT.md`), Node3's pyramid pilot
 (`NODE3_PYRAMID_PILOT.md`), and Node2's answer-hidden math probe (`MATH_FEEDBACK_ANSWER_HIDDEN_PROBE.md`)
