@@ -70,6 +70,88 @@ code-valid; at completion: union any-of-N + **solved-late-only sets** (the noise
 2. **B vs A / C vs B:** how much of C's edge was stay-close wording vs actual feedback?
 3. code-valid stays ~100% under the comparison section in-loop?
 
-## Results — PENDING (filled per loop by the auto-monitor workflow)
-*(four-way per-loop table + attribution differences + union/solved-late-only sets + examples will be
-appended here as checkpoints land.)*
+## Results — Loop 1 (C2 graded 2026-06-11 20:5x; B not started yet)
+**Aggregate (vs the already-graded arms at loop 1, identical pinned loop-0):**
+| arm | density | correct/2016 | reach | code-valid |
+|---|---|---|---|---|
+| A original | 0.456 | 919 | 84 | 100% |
+| C vfonly | 0.494 | 996 | 85 | 100% |
+| **C2 vfonly+disagreement** | **0.495** | **998** | 84 | **100%** |
+
+C2 ≈ C at the aggregate — expected by construction: the arms differ on only 132/2016 groups (6.5%).
+
+**The paired slice that matters — the 132 disagreement groups (identical parents across arms, same seed):**
+| | correct /132 |
+|---|---|
+| C (vfonly = silent on these groups) | 40 |
+| **C2 (+factual disagreement comparison)** | **44** |
+**Flips: C2 wins 6 / losses 2 (net +4).** This **replicates the offline probe in-loop** (offline: 41→46,
+5W/0L). Pooled offline+in-loop: **11W/2L, p≈0.011.** The disagreement signal survives the transition into
+the real SE loop at the same per-group effect size (~+3pp on treated groups), with code-valid 100%.
+
+Whether the treated groups' better children compound through loops 2–4 (and add solved-late-only problems)
+is what the remaining loops + union grading will show.
+
+## Results — Loop 2 (C2 graded 2026-06-11 22:1x)
+| loop | A density | C density | **C2 density** | A reach | C reach | **C2 reach** | C2 code-valid |
+|---|---|---|---|---|---|---|---|
+| 1 | 0.456 | 0.494 | **0.495** | 84 | 85 | 84 | 100% |
+| 2 | 0.408 | 0.464 | **0.467** | 82 | 85 | **81** | 95.6% |
+
+- **Density: C2 keeps a small edge over C** (941 vs 935; both well above A's 822). The loop-2 code-valid
+  dip (95.6%) is the known recombination-generic effect (seen in A, C, node3).
+- **Reach 81 vs C's 85 — watch item.** Within trajectory-divergence + TLE noise (per-loop reach swings
+  ±1–2; the union/solved-late-only sets at completion are the meaningful comparison), but worth tracking.
+- **Audit shift (the designed mechanism visibly working):** loop-2 groups = visible_failed **759** (down
+  from 1348 as children pass public tests) + **disagreement 223** (UP from 132 — the comparison path
+  fires more as populations turn all_pass) + silent 1034; 0 fallbacks. Feedback coverage at loop 2:
+  **48.7% for C2 vs ~37% for C** — disagreement keeps feedback alive exactly where vfonly goes silent.
+
+## Results — Loop 3 (C2 graded 2026-06-11 23:1x)
+| loop | A density | C density | **C2 density** | A reach | C reach | **C2 reach** | C2 code-valid |
+|---|---|---|---|---|---|---|---|
+| 3 | 0.488 | 0.506 | **0.508** | 82 | 85 | **84** | 98.9% |
+
+- C2 density 1025 — slightly above C's 1020 again (C2 ≥ C at every loop so far: 998/996, 941/935, 1025/1020).
+- **Reach recovered 81→84** (the loop-2 dip was trajectory/TLE noise as suspected); code-valid recovered to 98.9% (same pattern as C).
+- Loop-3 audit: visible_failed 984, **disagreement 137**, silent 895; 0 fallbacks. Coverage 55.6%.
+
+## C2 COMPLETE (loops 1–4 done 2026-06-11 23:58; B auto-started, running)
+
+**Per-loop (A and C = same-anchor references):**
+| loop | A density | C density | **C2 density** | A reach | C reach | **C2 reach** | C2 code-valid |
+|---|---|---|---|---|---|---|---|
+| 1 | 0.456 | 0.494 | **0.495** (998) | 84 | 85 | 84 | 100% |
+| 2 | 0.408 | 0.464 | **0.467** (941) | 82 | 85 | 81 | 95.6% |
+| 3 | 0.488 | 0.506 | **0.508** (1025) | 82 | 85 | 84 | 98.9% |
+| 4 | 0.462 | 0.512 | 0.510 (1028) | 80 | 82 | 80 | 96.7% |
+
+**Full-run aggregates (union-pass methodology, same as A/C):**
+| | A | C | **C2** |
+|---|---|---|---|
+| harvest (correct traces, loops 1–4) | 3,657 | 3,983 | **3,992** |
+| union any-of-N | 89 | 91 | **91** |
+| solved-late-only set | ∅ | {004 (fragile), 120} | **{120}** |
+| replace-erosion (union − final-pop) | 10 | 10 | 11 |
+| operator fallbacks (8,064 calls) | n/a | 0 | **0** |
+
+**Honest reading of C2 vs C (trajectory level):**
+1. **The treated-slice effect is real and replicated** (loop-1 paired slice on the 132 disagreement
+   groups: 40→44, 6W/2L; pooled with the offline probe 11W/2L, p≈0.011) — disagreement feedback helps
+   exactly where it fires.
+2. **At the aggregate level the add-on is ~neutral-to-slightly-positive:** harvest +9 traces over C
+   (3,992 vs 3,983; both ≈ +9% over A); same union (91); C2 ≥ C on density at loops 1–3, −4 at loop 4.
+   The treatment touches only ~7–11% of groups per loop, and its localized gains are diluted by replace
+   churn and sampling noise across the other ~90%.
+3. **Reachability: C2 retains the robust gain ({lcbv6-120}, again multi-trace) but not C's fragile one
+   ({lcbv6-004}, which was a single trace in C).** No new late-only problems this trajectory.
+4. **Operator health perfect:** 8,064 calls, 0 fallbacks; disagreement path fired 132/223/137/~ per loop —
+   keeping feedback coverage ~49–73% vs C's shrinking ~28–67%.
+
+**Interim conclusion:** the disagreement add-on is *safe, cheap, mechanistically validated, and slightly
+positive*, but at pop16/replace it does **not** yet translate into trajectory-level gains beyond vfonly —
+consistent with the broader lesson that prompt-level feedback alone has limited compounding under blind
+selection/replace (→ P2 selection-level feedback and P3 elitism are the levers that would let treated
+groups' better children actually shape the population). Final attribution awaits **B** (running).
+
+## Results — B arm + four-way attribution — PENDING (auto-monitor appends)
