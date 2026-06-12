@@ -154,4 +154,66 @@ consistent with the broader lesson that prompt-level feedback alone has limited 
 selection/replace (→ P2 selection-level feedback and P3 elitism are the levers that would let treated
 groups' better children actually shape the population). Final attribution awaits **B** (running).
 
-## Results — B arm + four-way attribution — PENDING (auto-monitor appends)
+## B Loop 1 → the four-way PAIRED attribution at loop 1 (graded 2026-06-12 01:5x)
+All four arms share the identical pinned loop-0 AND identical loop-1 group compositions (same seed):
+| arm | density | correct/2016 | reach | code-valid |
+|---|---|---|---|---|
+| A original | 0.456 | 919 | 84 | 100% |
+| **B stay-close only** | **0.477** | **961** | **86** | 100% |
+| C stay-close+vfonly | 0.494 | 996 | 85 | 100% |
+| C2 +disagreement | 0.495 | 998 | 84 | 100% |
+
+**Attribution (paired differences at loop 1):**
+- **Stay-close wording (B−A): +42 correct (+2.1pp)**
+- **vfonly execution feedback (C−B): +35 correct (+1.7pp)**
+- Disagreement add-on (C2−C): +2 aggregate (treated 132-group slice: +4, 6W/2L)
+
+**Reading:** C's loop-1 edge over the original operator (+77) splits roughly **half wording, half feedback**
+— both real, neither dominant. Directionally consistent with the offline one-step probes (stay-close +4–5pp,
+vfonly +2.5pp there). Reach at loop 1: B's 86 is the highest single-loop value (±1–2 noise band).
+B loops 2–4 will show whether the wording-only arm erodes like A (the no-feedback arms eroded fastest in
+trajectory) or holds like the feedback arms.
+
+## FINAL — both arms complete (B done 2026-06-12 04:48; graded 10:1x). The four-way attribution.
+
+**Density per loop (correct/2016; all arms from the identical pinned loop-0):**
+| loop | A original | B stay-close | C +vfonly | C2 +disagreement |
+|---|---|---|---|---|
+| 1 | 0.456 (919) | 0.477 (961) | 0.494 (996) | 0.495 (998) |
+| 2 | 0.408 (822) | 0.450 (908) | 0.464 (935) | 0.467 (941) |
+| 3 | 0.488 (984) | 0.490 (987) | 0.506 (1020) | 0.508 (1025) |
+| 4 | 0.462 (932) | 0.494 (996) | **0.512 (1032)** | 0.510 (1028) |
+
+**Reach per loop / union / sets / harvest:**
+| | A | B | C | C2 |
+|---|---|---|---|---|
+| reach 1→4 | 84/82/82/80 | 86/81/82/80 | **85/85/85/82** | 84/81/84/80 |
+| union any-of-N | 89–90 | 91 | 91–92 | 91 |
+| **solved-late-only** | **∅** | {004: 1 trace} | {004: 1 trace, **120: 7 traces**} | {**120**: multi-trace} |
+| harvest (correct traces L1–4) | 3,657 | 3,852 | **3,983** | **3,992** |
+| replace-erosion | 10 | 11 | 10 | 11 |
+
+### Attribution (the answers)
+1. **Stay-close wording (B−A): real, ~+2pp/loop, +195 harvest.** Pure prompt-framing effect, costs nothing.
+2. **vfonly execution feedback (C−B): real ON TOP of wording, +131 harvest (+1.4–1.8pp/loop), and —
+   decisively — it is what PRESERVES THE FRONTIER:** C holds reach 85/85/85 across loops while B erodes
+   like A (86→81→82→80). Wording does not protect reach; feedback does.
+3. **Reachability is feedback-specific:** lcbv6-004 (1 trace each in B and C) is a borderline problem any
+   stay-close arm occasionally hits — NOT a feedback effect. **lcbv6-120 is the real reachability gain:
+   reached repeatedly by BOTH feedback arms (C: 7 traces; C2: multi-trace) and NEVER by A or B** (0/80
+   under BoN N=80 too). The only robust frontier expansion in the whole study is attributable to
+   execution feedback specifically.
+4. **Disagreement add-on (C2−C): +9 harvest, ~0 aggregate; real on its treated slice** (132 groups:
+   40→44, 6W/2L; pooled with offline 11W/2L p≈0.011) but diluted by blind selection/replace.
+
+### Bottom line
+- **Best deployable configuration today: C (stay-close + vfonly), with C2 equal-or-slightly-better and
+  strictly better-covered.** Feedback's contributions decompose cleanly: wording lifts density; execution
+  feedback lifts density further, preserves reach across loops, and is solely responsible for the robust
+  reachability gain.
+- **The ceiling of prompt-level feedback is now mapped:** all arms erode ~10–11 problems under blind
+  replace, and treated-slice gains don't compound through uniform selection. The next lever is putting
+  the signal into the machinery (P2 selection / P3 elitist update) — coordinate with the parallel
+  verifier-ops (arm V) line before building.
+- Operator health across both new runs: **0 fallbacks / 16,128 calls**; code-valid ≈93–100% (loop-2 dip
+  recombination-generic, all arms).
