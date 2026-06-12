@@ -24,9 +24,37 @@
 > - **Net: on code, strip=true is parity-or-slightly-better at ~0.2× the recombination input cost** —
 >   consistent with math, where strip=T was already the compute-fair winner.
 >
-> **The AIME/HMMT strip=true rows below carry the SAME confound** (own loop-0s). Loop-0-matched math
-> reruns are running (2026-06-12, `scripts/run_math_strip_fixedloop0.sh` →
-> `outputs/node1_se_strip_{aime,hmmt}_fixedloop0/`) and will be appended here when graded.
+> **The AIME/HMMT strip=true rows below carried the SAME confound** (own loop-0s) — now also resolved
+> with loop-0-matched runs (node2's `outputs/node2_math_plainstrip_f0_{aime,hmmt}/` + node1's
+> independent replications `outputs/node1_se_strip_{aime,hmmt}_fixedloop0/`; pin digests verified
+> identical to the strip=F anchors):
+>
+> | AIME (18), SAME loop-0 | union | final | per-loop solved | traces L1–4 |
+> |---|---|---|---|---|
+> | strip=F (anchor) | 15 | 14 | 15/15/15/14/14 | 848 |
+> | strip=T OLD (own loop-0, started 13) | 15 | 15 | 13/14/14/14/15 | 870 |
+> | **strip=T PINNED** (node2 / node1 replication) | **15** | **15** | 15/15/15/15/15 | **887 / 891** |
+>
+> | HMMT (21), SAME loop-0 | union | final | per-loop solved | traces L1–4 |
+> |---|---|---|---|---|
+> | strip=F (anchor) | 14 | 12 | 12/14/13/12/12 | 553 |
+> | strip=T OLD (own loop-0, started 15) | **16** ← lottery | 13 | 15/15/15/14/13 | 726 |
+> | **strip=T PINNED** (node2) | **14** | **13** | 12/13/13/13/13 | **653** |
+>
+> **HMMT's old "strip=T reaches MORE (16>14)" was ALSO loop-0 lottery — in strip=T's favor** (its own
+> loop-0 started at 15 solved vs the anchor's 12). Pinned: reach 14 = 14. Conclusion #1's claim of a
+> strip=T reach gain on HMMT is withdrawn alongside the LCBV6 reach loss; **reach is strip-invariant on
+> all three datasets.** The depth claims survive at corrected magnitudes: same-anchor traces strip=T vs F
+> = AIME +5%, HMMT +18%, LCBV6 +2.3% (the old HMMT trace count, 726, was inflated by the lucky start;
+> token-matched depth-vs-BoN ratios should be recomputed from the pinned runs before being quoted).
+>
+> **The clean, fully fair three-dataset strip story (all same-anchor):**
+> 1. **Reach: strip-invariant everywhere** (AIME 15=15, HMMT 14=14, LCBV6 91≈90). All prior ± reach
+>    deviations in either direction were loop-0 sampling variance.
+> 2. **strip=T consistently erodes the population LESS** (AIME holds 15/15/15/15 vs F dripping to 14;
+>    HMMT 13s vs F 12s; LCBV6 −8 vs −10).
+> 3. **strip=T yields more correct traces from the same start** (+5% / +18% / +2.3%) at a fraction of
+>    the recombination prompt cost → it is the strictly better verifier-free SE setting on every dataset.
 
 Formal verifier-free SqueezeEvolve (single model, `fitness=diversity`, `update=replace`, loops=5,
 temp=1.0, top_k=20, max_tokens=32768) on the `non_saturated` subsets, compared to compute-matched
