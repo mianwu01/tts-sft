@@ -1,0 +1,7 @@
+run_name: tts_sft_se_strip_lcbv6_fixedloop0_node1
+routing: {k: 4, population: 16, groups: 16, loops: 5, confidence_percentiles: [], fitness: diversity, selection: uniform, selection_temperature: 1.0, update: replace, lite_fraction: 0.0, lite_method: majority, recombination: livecodebench-aggregate, evaluation: livecodebench-none, task: code, generation_batch_size: 48, strip_think: true, seed: 1234}
+models: [{name: Qwen/Qwen3-4B-Thinking-2507, base_url: http://localhost:8000/v1, api_key: EMPTY, endpoint: chat, max_tokens: 32768, temperature: 1.0, top_p: 0.95, max_concurrency: 48, extra_body: {top_k: 20}}]
+retry: {request_timeout_seconds: 7200}
+resume: true
+checkpoint_dir: ./outputs/node1_se_strip_lcbv6_fixedloop0/checkpoints
+metrics_path: ./outputs/node1_se_strip_lcbv6_fixedloop0/metrics.json

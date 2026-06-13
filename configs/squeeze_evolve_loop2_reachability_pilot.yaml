@@ -1,0 +1,57 @@
+# Squeeze-Evolve FORMAL REACHABILITY PILOT config — Node 1.
+#
+# Separate config (defaults + smoke config NOT modified). The reachability diagnostic tests
+# whether evolutionary TTS reaches solutions independent sampling cannot at matched compute.
+#
+# strip_think: false  -> recombination prompts include the FULL parent reasoning (the faithful
+#   mechanism under test). This makes loop-1 recombination prompts large (k=4 parents, each up to
+#   max_tokens), so vLLM must serve a large context: tensor-parallel across 8 GPUs at
+#   --max-model-len 131072 (model native context = 262144). A compressed-recombination ablation
+#   (strip_think: true @ max_model_len 40960) is deferred.
+#
+# Saved candidates ALWAYS keep full <think> traces regardless of strip_think (verified in SE
+# source: orchestrator.py:209 / :292 — strip_think only affects the recombination prompt input).
+#
+# loops: 2 == COUNT -> loop_index 0 (initial generation) and 1 (one evolution). Do NOT exceed loop 5.
+
+run_name: tts_sft_se_loop2_reachability_pilot_node1
+
+routing:
+  k: 4                              # group size (parents per recombination)
+  population: 16                    # candidates per problem at loop 0
+  groups: 16                        # new candidates per loop = population (user gave population/k only;
+                                    #   set groups=population to keep the population at 16 each loop,
+                                    #   mirroring the default's population==groups relationship)
+  loops: 2                          # COUNT -> loop_index 0 and 1 (do NOT exceed 5)
+  confidence_percentiles: []        # N=1 model -> 0 thresholds
+  fitness: diversity                # unique-answer count; no scoring_model / vllm fork needed
+  selection: uniform
+  selection_temperature: 1.0
+  update: replace
+  lite_fraction: 0.0
+  lite_method: majority
+  recombination: aime25-aggregate   # generic math aggregator (full parent solutions in the prompt)
+  evaluation: aime25-none           # we grade separately (exact-match; consider math_verify)
+  task: math
+  generation_batch_size: 16
+  strip_think: false                # FULL parent reasoning in recombination (faithful; saved traces unaffected)
+  seed: 1234
+
+models:
+  - name: Qwen/Qwen3-4B-Thinking-2507
+    base_url: http://localhost:8000/v1
+    api_key: EMPTY
+    endpoint: chat
+    max_tokens: 32768               # pilot param
+    temperature: 0.6               # pilot param (note: smoke used 0.7) — Node 2 must match this
+    top_p: 0.95
+    max_concurrency: 16
+
+# No scoring_model: single model + fitness=diversity.
+
+retry:
+  request_timeout_seconds: 1200     # 32768-token thinking generations are slow under load (was 600 in smoke)
+
+resume: false
+checkpoint_dir: ./outputs/node1_se_loop2_reachability_pilot/checkpoints
+metrics_path: ./outputs/node1_se_loop2_reachability_pilot/metrics.json

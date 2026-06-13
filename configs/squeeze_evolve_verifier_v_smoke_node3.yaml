@@ -1,0 +1,8 @@
+# SMOKE config for the V arm: 2 problems, loops 1-2 from the pinned loop-0 (loops: 3).
+run_name: tts_sft_se_verifier_v_smoke_node3
+routing: {k: 4, population: 16, groups: 16, loops: 3, confidence_percentiles: [], fitness: diversity, selection: livecodebench-verifier-selection, selection_temperature: 1.0, update: livecodebench-elitist-replace, lite_fraction: 0.0, lite_method: majority, recombination: livecodebench-feedback-disagreement-aggregate, evaluation: livecodebench-none, task: code, generation_batch_size: 48, strip_think: false, seed: 1234}
+models: [{name: Qwen/Qwen3-4B-Thinking-2507, base_url: http://localhost:8000/v1, api_key: EMPTY, endpoint: chat, max_tokens: 32768, temperature: 1.0, top_p: 0.95, max_concurrency: 48, extra_body: {top_k: 20}}]
+retry: {request_timeout_seconds: 7200}
+resume: true
+checkpoint_dir: ./outputs/node3_lcb_verifier_v_smoke/checkpoints
+metrics_path: ./outputs/node3_lcb_verifier_v_smoke/metrics.json

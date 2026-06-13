@@ -1,0 +1,48 @@
+# Squeeze-Evolve AIME25 HARD-TAIL MINI-PILOT config — Node 1.
+#
+# Identical params to the first-5 reachability pilot (configs/squeeze_evolve_loop2_reachability_pilot.yaml);
+# ONLY run_name + checkpoint/metrics paths differ (isolated; does not overwrite prior pilots).
+# Purpose: run SE on 7 AIME25 NON-EASY problems (independent N=8 weak/zero) to see whether
+# full-reasoning recombination reaches solutions independent sampling could not.
+#
+# strip_think: false (faithful full-reasoning recombination) -> needs vLLM TP=8 @ max_model_len 131072.
+# Saved candidates always keep full <think> traces regardless of strip_think (orchestrator.py:209/292).
+# loops: 2 == COUNT -> loop_index 0 and 1. Do NOT exceed loop 5.
+
+run_name: tts_sft_se_loop2_aime25_hardtail7_node1
+
+routing:
+  k: 4
+  population: 16
+  groups: 16                        # = population (maintain population each loop)
+  loops: 2                          # COUNT -> loop_index 0 and 1
+  confidence_percentiles: []
+  fitness: diversity
+  selection: uniform
+  selection_temperature: 1.0
+  update: replace
+  lite_fraction: 0.0
+  lite_method: majority
+  recombination: aime25-aggregate   # full parent solutions in the prompt
+  evaluation: aime25-none           # grade separately (exact-match)
+  task: math
+  generation_batch_size: 16
+  strip_think: false                # FULL parent reasoning in recombination (saved traces unaffected)
+  seed: 1234
+
+models:
+  - name: Qwen/Qwen3-4B-Thinking-2507
+    base_url: http://localhost:8000/v1
+    api_key: EMPTY
+    endpoint: chat
+    max_tokens: 32768
+    temperature: 0.6               # MATCH for Node 2 independent rollouts
+    top_p: 0.95
+    max_concurrency: 16
+
+retry:
+  request_timeout_seconds: 1200
+
+resume: false
+checkpoint_dir: ./outputs/node1_se_loop2_aime25_hardtail7/checkpoints
+metrics_path: ./outputs/node1_se_loop2_aime25_hardtail7/metrics.json

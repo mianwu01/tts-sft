@@ -1,0 +1,42 @@
+# NODE3 PYRAMID PILOT (full, all 126 non_saturated — DO NOT LAUNCH until smoke passes + user approval).
+# Base config for the staged pyramid/funnel Feedback-SE run. Identical to the node1 vfonly pilot config
+# except node3 run_name / checkpoint_dir / metrics_path. `loops`, `groups`, `routing.seed` are
+# PLACEHOLDERS — scripts/run_se_pyramid_stages.py overrides them per stage (no native per-loop schedule
+# in SqueezeEvolve). Intended schedule: loop1=16, loop2=8, loop3=4, loop4=2 groups (update=replace ⇒
+# population funnels 16→16→8→4→2; k=4 always satisfiable since every loop starts from pop ≥ 4).
+# Frozen vfonly semantics unchanged; public tests in-loop only; hidden tests OFFLINE post-hoc only.
+run_name: tts_sft_se_feedback_vfonly_pyramid_node3
+routing:
+  k: 4
+  population: 16          # loop-0 population; loop-0 is PINNED from strip=false rerun #1 (resume)
+  groups: 16              # PLACEHOLDER — overridden per stage by run_se_pyramid_stages.py
+  loops: 5                # PLACEHOLDER — overridden per stage by run_se_pyramid_stages.py
+  confidence_percentiles: []
+  fitness: diversity
+  selection: uniform
+  selection_temperature: 1.0
+  update: replace
+  lite_fraction: 0.0
+  lite_method: majority
+  recombination: livecodebench-feedback-aggregate
+  evaluation: livecodebench-none
+  task: code
+  generation_batch_size: 48
+  strip_think: false
+  seed: 1234              # PLACEHOLDER — overridden per stage (base_seed + loop_index)
+models:
+  - name: Qwen/Qwen3-4B-Thinking-2507
+    base_url: http://localhost:8000/v1
+    api_key: EMPTY
+    endpoint: chat
+    max_tokens: 32768
+    temperature: 1.0
+    top_p: 0.95
+    max_concurrency: 48
+    extra_body:
+      top_k: 20
+retry:
+  request_timeout_seconds: 7200
+resume: true
+checkpoint_dir: ./outputs/node3_lcb_feedback_se_vfonly_pyramid_pilot/checkpoints
+metrics_path: ./outputs/node3_lcb_feedback_se_vfonly_pyramid_pilot/metrics.json

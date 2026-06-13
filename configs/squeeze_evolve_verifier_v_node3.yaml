@@ -1,0 +1,11 @@
+# V arm ("verifier-SE") of the attribution set extension, pinned loop-0 from strip=false rerun #1.
+# Identical to the C2 config EXCEPT selection + update are verifier-keyed (full-suite verdicts drive
+# MACHINERY only; prompts stay C2 verbatim, hidden-test content never enters a prompt).
+# V-C2 = value of verifier-keyed selection+elitism. See docs/LCB_VERIFIER_SE_V_RUN.md.
+run_name: tts_sft_se_verifier_v_node3
+routing: {k: 4, population: 16, groups: 16, loops: 5, confidence_percentiles: [], fitness: diversity, selection: livecodebench-verifier-selection, selection_temperature: 1.0, update: livecodebench-elitist-replace, lite_fraction: 0.0, lite_method: majority, recombination: livecodebench-feedback-disagreement-aggregate, evaluation: livecodebench-none, task: code, generation_batch_size: 48, strip_think: false, seed: 1234}
+models: [{name: Qwen/Qwen3-4B-Thinking-2507, base_url: http://localhost:8000/v1, api_key: EMPTY, endpoint: chat, max_tokens: 32768, temperature: 1.0, top_p: 0.95, max_concurrency: 48, extra_body: {top_k: 20}}]
+retry: {request_timeout_seconds: 7200}
+resume: true
+checkpoint_dir: ./outputs/node3_lcb_verifier_v/checkpoints
+metrics_path: ./outputs/node3_lcb_verifier_v/metrics.json

@@ -19,6 +19,179 @@ python scripts/run_squeeze_evolve.py ... --dry-run            # command construc
 
 Everything below assumes you are on the H100 box.
 
+## Step 1: Solution Reachability Diagnostic (run BEFORE the SFT pipeline below)
+
+**Purpose.** Before any SFT, check whether evolutionary test-time scaling actually
+reaches solutions ordinary sampling does not. On the SAME fixed math problems compare:
+
+- **Arm A** — official SqueezeEvolve generation (`scripts/run_squeeze_evolve.py`).
+- **Arm B** — *compute-matched* independent rollouts from the same base model
+  (`scripts/run_independent_rollouts.py`): `N_i` independent samples per problem, where
+  `N_i` is SqueezeEvolve's per-problem rollout budget.
+
+Then `scripts/eval_reachability.py` (any-of-N, same exact-match grader) labels each
+problem `both_solved | only_se_solved | only_independent_solved | neither_solved`.
+
+**Why before SFT.** The hypothesis is that population-based search reaches solution space
+independent sampling cannot at matched compute, making those traces better
+self-distillation targets. If SqueezeEvolve reaches no extra solutions at matched budget,
+the downstream SFT comparison isn't worth running. This is the cheap go/no-go.
+
+### Prepare the seed dataset (safe data prep — NOT generation)
+
+Both arms consume ONE fixed, answer-bearing seed set, built with the existing
+`scripts/prepare_math_seed.py` (pure local transform — no model). Output schema is
+`{id, question, answer}`.
+
+**MATH500 — available locally, start here.** Source (note the real path — there is **no**
+`opsd/` segment): `/mnt/cpfs/yangboxue/wujunyi/LightningRL/data/MATH500.json` — 500 records,
+keys `question` / `ground_truth_answer`.
+
+```bash
+# Smoke subset (5 problems) — verified working; schema {id, question, answer}
+python scripts/prepare_math_seed.py \
+    --input  /mnt/cpfs/yangboxue/wujunyi/LightningRL/data/MATH500.json \
+    --output data/seeds/math500_seed_smoke.jsonl \
+    --question-field question --answer-field ground_truth_answer \
+    --id-prefix math500- --require-answer --limit 5
+
+# Full MATH500 (500 problems) — SAFE DATA PREP, NOT generation (drop --limit)
+python scripts/prepare_math_seed.py \
+    --input  /mnt/cpfs/yangboxue/wujunyi/LightningRL/data/MATH500.json \
+    --output data/seeds/math500_seed.jsonl \
+    --question-field question --answer-field ground_truth_answer \
+    --id-prefix math500- --require-answer
+```
+
+**AIME-2025 / HMMT-2025 — placeholder; confirm dataset with Harman first.** SqueezeEvolve
+bundles these as parquet at `external/squeeze-evolve/data/{aime25,hmmt25}/test.parquet`
+(30 problems each). Fields are nested (question = `prompt[0]['content']`, answer =
+`reward_model['ground_truth']`), so flatten first, then reuse `prepare_math_seed.py`.
+⛔ Do NOT run until Harman confirms the dataset:
+
+```bash
+# TODO_HARMAN_CONFIRM dataset. Flatten parquet -> flat JSONL (no model); swap aime25 <-> hmmt25.
+python - <<'PY'
+import pandas as pd, json
+ds = "aime25"   # or "hmmt25"
+df = pd.read_parquet(f"external/squeeze-evolve/data/{ds}/test.parquet")
+with open(f"data/seeds/_{ds}_flat.jsonl", "w") as f:
+    for _, r in df.iterrows():
+        f.write(json.dumps(
+            {"question": r["prompt"][0]["content"], "answer": str(r["reward_model"]["ground_truth"])},
+            ensure_ascii=False) + "\n")
+PY
+python scripts/prepare_math_seed.py \
+    --input  data/seeds/_aime25_flat.jsonl \
+    --output data/seeds/aime25_seed.jsonl \
+    --id-prefix aime25- --require-answer
+```
+
+**Dataset choice (confirm with Harman):**
+- **MATH500** — 500 problems, broad difficulty; good for smoke + plumbing, but likely
+  **saturates** Qwen3-4B-Thinking-2507 (near-ceiling accuracy ⇒ little reachability gap).
+- **AIME-2025 / HMMT-2025** — only 30 problems each (small sample) but much harder ⇒ better
+  for **measuring reachability gaps** between SqueezeEvolve and independent sampling.
+- Likely plan: smoke on a MATH500 subset, *measure* on AIME/HMMT (or a hard MATH500 slice).
+  Final choice is Harman's.
+
+### ⛔ Safety gate
+DO NOT start full data generation until Harman confirms recommended SqueezeEvolve
+hyperparameters. The full-run knobs in `configs/squeeze_evolve_generation.yaml`
+(`routing.population`, `routing.loops`, `routing.k`, `routing.fitness`) are
+**placeholders — `TODO_HARMAN_CONFIRM`**. Independently, the per-problem budget `N_i` is
+currently **UNKNOWN**: `scripts/se_budget.py` cannot yet recover it from SqueezeEvolve
+telemetry, so true compute-matching is blocked until one smoke run is inspected.
+
+### Right now — exact next commands (safe; no GPU / model / API)
+```bash
+# 1. Prepare the MATH500 smoke seed (data prep, no model)
+python scripts/prepare_math_seed.py \
+    --input  /mnt/cpfs/yangboxue/wujunyi/LightningRL/data/MATH500.json \
+    --output data/seeds/math500_seed_smoke.jsonl \
+    --question-field question --answer-field ground_truth_answer \
+    --id-prefix math500- --require-answer --limit 5
+
+# 2. Run the test suite (expect: 87 passed)
+python -m pytest -q
+
+# 3. SqueezeEvolve command construction ONLY — NO generation (--dry-run skips the model)
+python scripts/run_squeeze_evolve.py \
+    --input  data/seeds/math500_seed_smoke.jsonl \
+    --output /tmp/se_out.jsonl \
+    --config configs/squeeze_evolve_generation.yaml \
+    --squeeze-evolve-dir external/squeeze-evolve \
+    --model Qwen/Qwen3-4B-Thinking-2507 --dry-run
+
+# 4. STOP. Do not run real generation until Harman confirms hyperparameters.
+```
+
+Other safe checks (no model): `--help` on any script, and the offline reachability
+evaluator on bundled fixtures:
+```bash
+python scripts/eval_reachability.py \
+    --se-output          tests/fixtures/mock_se_outputs.jsonl \
+    --independent-output tests/fixtures/mock_independent_outputs.jsonl \
+    --output-jsonl       /tmp/reach_per_problem.jsonl \
+    --summary-json       /tmp/reach_summary.json
+# -> total=4 both=1 only_se=1 only_independent=1 neither=1
+```
+
+### Pre-generation checklist
+Every box must be checked before launching ANY real generation:
+- [ ] Official SqueezeEvolve installed — `pip install -e ".[dev]"` in `external/squeeze-evolve`; `which squeeze-evolve-client` prints a path.
+- [ ] vLLM serving `Qwen/Qwen3-4B-Thinking-2507` (Step 3) and reachable.
+- [ ] Seed JSONL prepared (`{id, question, answer}`) **and** dataset confirmed with Harman.
+- [ ] Harman confirmed SqueezeEvolve hyperparameters (population / loops / k / fitness) — every `TODO_HARMAN_CONFIRM` replaced.
+- [ ] Compute-match unit confirmed (#generations vs token budget).
+- [ ] One tiny SqueezeEvolve smoke run completed and its raw `….raw.json` / `metrics.json` inspected to locate the per-problem rollout-budget field.
+- [ ] `scripts/se_budget.py` updated if needed so `budget_status` flips UNKNOWN → FROM_RAW_METRICS.
+
+### Full-run template — ⛔ DO NOT RUN BEFORE HARMAN CONFIRMS HYPERPARAMETERS
+Needs the GPU box + running vLLM (Step 3) + SqueezeEvolve install (Step 2) + base model.
+Replace every `TODO_HARMAN_CONFIRM`.
+```bash
+SEED=data/seeds/math500_seed.jsonl   # TODO_HARMAN_CONFIRM dataset (full MATH500, or AIME/HMMT seed)
+
+# 1. [Arm A] SqueezeEvolve. First set in configs/squeeze_evolve_generation.yaml:
+#      routing.population: TODO_HARMAN_CONFIRM
+#      routing.loops:      TODO_HARMAN_CONFIRM
+#      routing.k:          TODO_HARMAN_CONFIRM
+#      routing.fitness:    TODO_HARMAN_CONFIRM   # diversity on stock vLLM unless confidence is wired up
+python scripts/run_squeeze_evolve.py \
+    --input "$SEED" --output data/generated/se_reach.jsonl \
+    --config configs/squeeze_evolve_generation.yaml \
+    --squeeze-evolve-dir external/squeeze-evolve \
+    --model Qwen/Qwen3-4B-Thinking-2507 --base-url http://localhost:8000/v1 --api-key EMPTY
+
+# 2. Recover per-problem budget N_i (ONLY trustworthy after se_budget.py is taught the
+#    real telemetry field from a smoke run; until then budget_status stays UNKNOWN).
+python scripts/se_budget.py \
+    --se-output data/generated/se_reach.jsonl \
+    --raw-json  data/generated/se_reach.jsonl.raw.json \
+    --config    configs/squeeze_evolve_generation.yaml \
+    --output    data/results/se_budget.jsonl
+#    If budget_status is UNKNOWN, STOP — compute-matching is not yet valid.
+
+# 3. [Arm B] compute-matched independent rollouts (N = TODO_HARMAN_CONFIRM, ideally per-problem N_i).
+python scripts/run_independent_rollouts.py \
+    --input "$SEED" --output data/generated/independent_reach.jsonl \
+    --model Qwen/Qwen3-4B-Thinking-2507 --base-url http://localhost:8000/v1 --api-key EMPTY \
+    --n-samples TODO_HARMAN_CONFIRM \
+    --temperature 0.7 --top-p 0.95 --max-tokens 8192   # match SqueezeEvolve's sampling
+
+# 4. Reachability comparison.
+python scripts/eval_reachability.py \
+    --se-output          data/generated/se_reach.jsonl \
+    --independent-output data/generated/independent_reach.jsonl \
+    --se-budget-jsonl    data/results/se_budget.jsonl \
+    --output-jsonl       data/results/reachability_per_problem.jsonl \
+    --summary-json       data/results/reachability_summary.json
+```
+Headline = `only_se_solved` vs `only_independent_solved`: a reproducible `only_se_solved`
+set materially larger than `only_independent_solved` is the evidence that evolutionary
+TTS reaches new solution space.
+
 ## 1. Install dependencies
 
 ```bash

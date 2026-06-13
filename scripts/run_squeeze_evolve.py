@@ -148,11 +148,59 @@ def _write_patched_config(patched: dict, dest_yaml: Path) -> None:
         yaml.safe_dump(patched, f, sort_keys=False)
 
 
+def _preserve_loop_checkpoints(se_dir: Path, patched: dict, output: Path) -> dict | None:
+    """Snapshot the official client's per-loop checkpoints next to our output.
+
+    SqueezeEvolve writes one checkpoint per evolutionary loop to
+    ``<checkpoint_dir>/<run_name>_loop<t>.json`` (orchestrator.save_checkpoint,
+    every loop incl. loop 0). Each holds the FULL ProblemState for that loop:
+    every candidate's full response (with ``<think>`` traces), parent groups
+    (``candidate_groups``), and per-loop ``routing_details`` (fitness/scores/routes).
+    The client's ``--output`` JSON only keeps the FINAL loop, so these checkpoints
+    are the ONLY source of per-loop candidate history. They live inside the
+    SqueezeEvolve clone and are overwritten by the next run with the same
+    ``run_name``, so we copy them into ``<output>.checkpoints/`` to preserve them
+    (Harman: "save all candidates from every squeeze evolve loop").
+
+    Returns snapshot metadata for embedding in normalized records, or None on
+    error. Never raises — preservation must not break the run.
+    """
+    try:
+        run_name = patched.get("run_name", "default")
+        src = Path(patched.get("checkpoint_dir", "./artifacts/checkpoints"))
+        if not src.is_absolute():
+            src = se_dir / src                      # client runs with cwd=se_dir
+        files = sorted(src.glob(f"{run_name}_loop*.json")) if src.is_dir() else []
+        if not files:
+            logger.warning(
+                "No per-loop checkpoints found under %s (pattern '%s_loop*.json'). "
+                "Per-loop candidate history will be UNAVAILABLE — verify checkpointing "
+                "and run_name after a smoke run.", src, run_name,
+            )
+            return {"run_name": run_name, "checkpoint_dir": str(src), "n_loop_checkpoints": 0}
+        dest = output.parent / (output.name + ".checkpoints")
+        dest.mkdir(parents=True, exist_ok=True)
+        for f in files:
+            shutil.copy2(f, dest / f.name)
+        logger.info("Preserved %d per-loop checkpoint(s) -> %s", len(files), dest)
+        logger.info(
+            "Build the per-loop candidate dataset with:\n"
+            "    python scripts/se_loop_candidates.py --checkpoint-dir %s "
+            "--se-output %s --output %s.loop_candidates.jsonl",
+            dest, output, output,
+        )
+        return {"run_name": run_name, "checkpoint_dir": str(dest), "n_loop_checkpoints": len(files)}
+    except Exception as e:  # noqa: BLE001 - preservation is best-effort
+        logger.warning("Could not preserve loop checkpoints: %s", e)
+        return None
+
+
 def _normalize_orchestrator_output(
     seeds: list[dict],
     raw_path: Path,
     out_path: Path,
     model_name: str,
+    extra_metadata: dict | None = None,
 ) -> int:
     """Convert the orchestrator's JSON output back to one JSONL record per seed.
 
@@ -212,6 +260,7 @@ def _normalize_orchestrator_output(
             "metadata": {
                 "squeeze_evolve_run_id": run_id,
                 "n_candidates": len(candidates),
+                **(extra_metadata or {}),
             },
         }
         out_records.append(rec)
@@ -265,7 +314,11 @@ def main() -> int:
         logger.error("Seed file %s is empty.", args.input)
         return 2
 
-    raw_output: Path = args.raw_output or args.output.with_suffix(args.output.suffix + ".raw.json")
+    # Resolve to ABSOLUTE: squeeze-evolve-client is invoked with cwd=se_dir, so a *relative*
+    # --output would be written inside the SE clone instead of next to our --output (and the
+    # existence check below would then fail). args.output stays as-is — it is only used by this
+    # process (which runs from the repo root).
+    raw_output: Path = (args.raw_output or args.output.with_suffix(args.output.suffix + ".raw.json")).resolve()
     raw_output.parent.mkdir(parents=True, exist_ok=True)
 
     tmp_dir = Path(tempfile.mkdtemp(prefix="tts_sft_se_"))
@@ -321,7 +374,8 @@ def main() -> int:
             return 4
 
         model_name = patched["models"][0]["name"] if patched.get("models") else "unknown"
-        _normalize_orchestrator_output(seeds, raw_output, args.output, model_name)
+        ckpt_info = _preserve_loop_checkpoints(se_dir, patched, args.output)
+        _normalize_orchestrator_output(seeds, raw_output, args.output, model_name, extra_metadata=ckpt_info)
         return 0
     finally:
         if not args.keep_tmp:

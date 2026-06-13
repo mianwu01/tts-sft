@@ -1,0 +1,37 @@
+# CONTEXT-OVERFLOW PREFLIGHT — loop0 ONLY (loops=1) on hard11, max_tokens=65536, temp=1.0.
+# Purpose: measure real loop-0 candidate lengths at the 65536 cap so we can compute (offline) whether a
+# loop1 k=4 recombination prompt would overflow max_model_len=262144. NOT a full SE experiment.
+# Threshold for loop1: prompt_tokens must be <= 262144 - 65536 = 196608.
+run_name: tts_sft_se_context_preflight_loop0_hard11_node1
+routing:
+  k: 4
+  population: 16
+  groups: 16
+  loops: 1
+  confidence_percentiles: []
+  fitness: diversity
+  selection: uniform
+  selection_temperature: 1.0
+  update: replace
+  lite_fraction: 0.0
+  lite_method: majority
+  recombination: aime25-aggregate
+  evaluation: aime25-none
+  task: math
+  generation_batch_size: 16
+  strip_think: false
+  seed: 1234
+models:
+  - name: Qwen/Qwen3-4B-Thinking-2507
+    base_url: http://localhost:8000/v1
+    api_key: EMPTY
+    endpoint: chat
+    max_tokens: 65536
+    temperature: 1.0
+    top_p: 0.95
+    max_concurrency: 16
+retry:
+  request_timeout_seconds: 3600
+resume: false
+checkpoint_dir: ./outputs/node1_context_preflight_loop0_hard11_max65536_temp1/checkpoints
+metrics_path: ./outputs/node1_context_preflight_loop0_hard11_max65536_temp1/metrics.json

@@ -1,0 +1,37 @@
+# node4 16k/loop10 SE. loops=10, max_tokens=16384, update=replace, fitness=diversity,
+# strip_think=false, temp=1.0, top_k=20, verifier-free. N_i=160. Serve vLLM TP8 (>=131072).
+run_name: tts_sft_se_node4_loop10_16k_stripfalse_aime_non_saturated
+routing:
+  k: 4
+  population: 16
+  groups: 16
+  loops: 10
+  confidence_percentiles: []
+  fitness: diversity
+  selection: uniform
+  selection_temperature: 1.0
+  update: replace
+  lite_fraction: 0.0
+  lite_method: majority
+  recombination: aime25-aggregate
+  evaluation: aime25-none
+  task: math
+  generation_batch_size: 48
+  strip_think: false
+  seed: 1234
+models:
+  - name: Qwen/Qwen3-4B-Thinking-2507
+    base_url: http://localhost:8000/v1
+    api_key: EMPTY
+    endpoint: chat
+    max_tokens: 16384
+    temperature: 1.0
+    top_p: 0.95
+    max_concurrency: 48
+    extra_body:
+      top_k: 20
+retry:
+  request_timeout_seconds: 7200
+resume: false
+checkpoint_dir: ./outputs/node4_loop10_16k_stripfalse_aime_non_saturated/checkpoints
+metrics_path: ./outputs/node4_loop10_16k_stripfalse_aime_non_saturated/metrics.json

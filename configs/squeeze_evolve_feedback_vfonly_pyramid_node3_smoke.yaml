@@ -1,0 +1,45 @@
+# NODE3 PYRAMID SMOKE (2 problems). Base config for the staged pyramid/funnel Feedback-SE run.
+# Identical to the node1 vfonly pilot config (squeeze_evolve_feedback_vfonly_pilot_node1.yaml) except:
+#   - node3 run_name / checkpoint_dir / metrics_path (NEVER touches node1 paths);
+#   - `loops`, `groups`, and `routing.seed` here are PLACEHOLDERS — scripts/run_se_pyramid_stages.py
+#     overrides them per stage (stage t: loops=t+1, groups=schedule[t-1], seed=base_seed+t) because
+#     SqueezeEvolve has NO native per-loop groups schedule (RoutingConfig.groups is a single int).
+# Frozen vfonly semantics unchanged: recombination=livecodebench-feedback-aggregate (additive operator),
+# public/sample tests ONLY for feedback (env LCB_FB_SEED/LCB_FB_PUBLIC/LCB_FB_HARNESS), hidden tests
+# OFFLINE post-hoc only, update=replace, fitness=diversity, strip_think=false. Serve vLLM TP8 @ 262144.
+run_name: tts_sft_se_feedback_vfonly_pyramid_smoke_node3
+routing:
+  k: 4
+  population: 16          # loop-0 population size; loop-0 is PINNED (resume), never generated here
+  groups: 4               # PLACEHOLDER — overridden per stage by run_se_pyramid_stages.py
+  loops: 2                # PLACEHOLDER — overridden per stage by run_se_pyramid_stages.py
+  confidence_percentiles: []
+  fitness: diversity
+  selection: uniform
+  selection_temperature: 1.0
+  update: replace
+  lite_fraction: 0.0
+  lite_method: majority
+  recombination: livecodebench-feedback-aggregate
+  evaluation: livecodebench-none
+  task: code
+  generation_batch_size: 48
+  strip_think: false
+  seed: 1234              # PLACEHOLDER — overridden per stage (base_seed + loop_index)
+models:
+  - name: Qwen/Qwen3-4B-Thinking-2507
+    base_url: http://localhost:8000/v1
+    api_key: EMPTY
+    endpoint: chat
+    max_tokens: 32768
+    temperature: 1.0
+    top_p: 0.95
+    max_concurrency: 48
+    extra_body:
+      top_k: 20
+retry:
+  request_timeout_seconds: 7200
+resume: true   # PINNED loop-0 checkpoint placed in checkpoint_dir; every stage resumes from the
+               # latest checkpoint (resume-continue patch) and runs exactly one more loop.
+checkpoint_dir: ./outputs/node3_lcb_feedback_se_vfonly_pyramid_smoke/checkpoints
+metrics_path: ./outputs/node3_lcb_feedback_se_vfonly_pyramid_smoke/metrics.json

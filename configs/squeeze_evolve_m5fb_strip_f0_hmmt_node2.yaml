@@ -1,0 +1,38 @@
+# Formal SE round (non_saturated subset). loops=5, strip_think=TRUE (setting 2), temperature=1.0, verifier-free.
+# fitness=diversity, evaluation=hmmt25-none (no gt feedback). Serve vLLM TP=8 @ max_model_len 262144.
+# N_i = population*loops = 80. top_k forced+logged via extra_body. batch=48 for TP8 throughput.
+run_name: tts_sft_se_m5fb_strip_f0_hmmt_node2
+routing:
+  k: 4
+  population: 16
+  groups: 16
+  loops: 5
+  confidence_percentiles: []
+  fitness: diversity
+  selection: uniform
+  selection_temperature: 1.0
+  update: replace
+  lite_fraction: 0.0
+  lite_method: majority
+  recombination: hmmt25-m5-feedback-aggregate
+  evaluation: hmmt25-none
+  task: math
+  generation_batch_size: 48
+  strip_think: true
+  seed: 1234
+models:
+  - name: Qwen/Qwen3-4B-Thinking-2507
+    base_url: http://localhost:8000/v1
+    api_key: EMPTY
+    endpoint: chat
+    max_tokens: 32768
+    temperature: 1.0
+    top_p: 0.95
+    max_concurrency: 48
+    extra_body:
+      top_k: 20
+retry:
+  request_timeout_seconds: 7200
+resume: true   # PINNED loop-0 from the STRIP=FALSE formal run (fixedloop0 ablation)
+checkpoint_dir: ./outputs/node2_math_m5fb_strip_f0_hmmt/checkpoints
+metrics_path: ./outputs/node2_math_m5fb_strip_f0_hmmt/metrics.json

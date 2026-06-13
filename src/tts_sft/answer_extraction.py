@@ -1,7 +1,17 @@
 """Extract and normalize final math answers from model outputs.
 
-Designed for v1: regex-based extraction and shallow string normalization.
-Symbolic equivalence (e.g., sympy) is intentionally out of scope.
+Extraction is regex-based. Matching (``is_exact_match``) uses shallow string
+normalization PLUS a LaTeX-aware canonical fallback so display-only differences
+compare equal — e.g. ``\\boxed{(3, \\frac{\\pi}{2})}`` vs
+``\\left( 3, \\frac{\\pi}{2} \\right)`` (the Node 1 smoke false-negative). The
+fallback strips ``\\left``/``\\right``, unwraps a fully-boxed answer, drops LaTeX
+spacing commands, folds ``\\dfrac``/``\\tfrac`` -> ``\\frac``, and ignores
+whitespace.
+
+It deliberately does NOT do symbolic equivalence (``1/2`` vs ``0.5``, algebraic
+rearrangement, set/interval reordering). The stronger verifier for that is
+``math_verify`` — NOT installed here; if undercounting on harder formats shows
+up, add it later as an optional checker. See docs/NODE2_STATUS.md.
 """
 from __future__ import annotations
 
@@ -125,8 +135,55 @@ def normalize_math_answer(ans: str | None) -> str:
     return s
 
 
+# LaTeX spacing commands that carry no mathematical content:
+#   \,  \;  \:  \!  \quad  \qquad  \<space>  ~
+_LATEX_SPACING_RE = re.compile(r"\\[,;:!]|\\q?quad|\\ |~")
+
+
+def _unwrap_boxed(s: str) -> str:
+    """If the whole string is a single ``\\boxed{...}``, return its inner payload."""
+    t = s.strip()
+    prefix = "\\boxed{"
+    if t.startswith(prefix) and t.endswith("}"):
+        inner = t[len(prefix) : -1]
+        if inner.count("{") == inner.count("}"):
+            return inner
+    return s
+
+
+def latex_canonical(ans: str | None) -> str:
+    """Aggressive LaTeX-aware canonical form, used ONLY as an ``is_exact_match`` fallback.
+
+    Removes display-only LaTeX so equivalent renderings collapse together:
+    unwraps ``\\boxed{...}``, drops ``\\left``/``\\right``, folds
+    ``\\dfrac``/``\\tfrac`` -> ``\\frac``, deletes spacing commands and ``$``,
+    then removes ALL whitespace (LaTeX whitespace is non-semantic).
+
+    Kept SEPARATE from :func:`normalize_math_answer`, which intentionally keeps a
+    gentler, display-preserving contract (e.g. ``"(1, 2)"`` stays ``"(1, 2)"``).
+    This function only ever *adds* matches; it never relaxes a value-level
+    difference (``(3, x)`` vs ``(4, x)`` stay distinct).
+    """
+    if ans is None:
+        return ""
+    s = normalize_math_answer(ans)  # inherit $-strip / outer-brace-strip / trailing-punct
+    s = _unwrap_boxed(s)
+    s = s.replace("\\left", "").replace("\\right", "")
+    s = s.replace("\\dfrac", "\\frac").replace("\\tfrac", "\\frac")
+    s = _LATEX_SPACING_RE.sub("", s)
+    s = s.replace("$", "")
+    s = re.sub(r"\s+", "", s)
+    return s
+
+
 def is_exact_match(pred: str | None, gold: str | None) -> bool:
-    """Return True iff predicted and gold answers match after normalization."""
+    """Return True iff predicted and gold answers match.
+
+    Three escalating checks: (1) shallow-normalized string equality,
+    (2) numeric equality (``42`` == ``42.0``), (3) LaTeX-aware canonical equality
+    (handles ``\\left``/``\\right``, ``\\boxed``, spacing commands, whitespace).
+    Still NOT symbolic equivalence — see the module docstring / ``math_verify``.
+    """
     p = normalize_math_answer(pred)
     g = normalize_math_answer(gold)
     if not g:
@@ -135,6 +192,10 @@ def is_exact_match(pred: str | None, gold: str | None) -> bool:
         return True
     # Numeric equality fallback: "1000" == "1000.0", "1/2" stays string-only.
     try:
-        return float(p) == float(g)
+        if float(p) == float(g):
+            return True
     except (ValueError, TypeError):
-        return False
+        pass
+    # LaTeX-aware canonical fallback: display-only differences (the Node 1 case).
+    cp, cg = latex_canonical(pred), latex_canonical(gold)
+    return bool(cp) and bool(cg) and cp == cg

@@ -28,6 +28,15 @@ htmlcov/
 # Data, models, generated outputs (keep .gitkeep)
 data/generated/*
 !data/generated/.gitkeep
+
+# Large LCBV6 data blobs (>100MB, exceed GitHub file limit; regenerable from source)
+data/filtered/lcbv6_non_saturated_pilot40.jsonl
+data/filtered/lcbv6_informative.jsonl
+data/filtered/lcbv6_hard_zero_clean.jsonl
+data/filtered/lcbv6_nonsat_extra.jsonl
+data/filtered/lcbv6_non_saturated.jsonl
+data/filtered/lcbv6_full.jsonl
+data/seeds/lcbv6_seed.jsonl
 data/sft/*
 !data/sft/.gitkeep
 data/results/*

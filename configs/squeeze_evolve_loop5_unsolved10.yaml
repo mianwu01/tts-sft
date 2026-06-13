@@ -1,0 +1,35 @@
+# SE reachability — loops=5 (CEILING) on the unsolved-10. strip_think=false; TP8 @ 262144.
+# Last allowed loop count (Harman: do not exceed loop 5). Expected N_i = 16*5 = 80. Isolated names/dirs.
+run_name: tts_sft_se_loop5_unsolved10_node1
+routing:
+  k: 4
+  population: 16
+  groups: 16
+  loops: 5
+  confidence_percentiles: []
+  fitness: diversity
+  selection: uniform
+  selection_temperature: 1.0
+  update: replace
+  lite_fraction: 0.0
+  lite_method: majority
+  recombination: aime25-aggregate
+  evaluation: aime25-none
+  task: math
+  generation_batch_size: 16
+  strip_think: false
+  seed: 1234
+models:
+  - name: Qwen/Qwen3-4B-Thinking-2507
+    base_url: http://localhost:8000/v1
+    api_key: EMPTY
+    endpoint: chat
+    max_tokens: 32768
+    temperature: 0.6
+    top_p: 0.95
+    max_concurrency: 16
+retry:
+  request_timeout_seconds: 1200
+resume: false
+checkpoint_dir: ./outputs/node1_se_loop5_unsolved10/checkpoints
+metrics_path: ./outputs/node1_se_loop5_unsolved10/metrics.json

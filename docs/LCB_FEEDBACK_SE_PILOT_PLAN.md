@@ -22,15 +22,28 @@ The offline R2c probes only measure loop0→loop1. The research question is whet
 can only show up in-loop, where loop-t feedback shapes loop-(t+1) parents. The pilot is the smallest run
 that can detect compounding.
 
-## Arms (same seeds, same k=4 grouping, same strip=false candidate text; only the recombination prompt differs)
-1. **`A_original_strip_false`** — untouched original `livecodebench-aggregate` (no stay-close, no feedback). The current strip=false control; can reuse the existing strip=false SE run if seeds/decoding match exactly, else regenerate.
-2. **`B_stayclose_only`** — stay-close recombination prompt, **no feedback**. **Attribution control.**
-3. **`C_feedback_vfonly`** — stay-close + top-level failed-only note + **CHECK-bearing V2-concise feedback only for visible-failed candidates, no block for all_pass** (the frozen config).
+## First pilot: C-only (viability / compounding test)
+**Decision (2026-06-11): the FIRST multi-loop pilot runs only `C_feedback_vfonly`.** This is **not** an
+attribution-clean ablation — we already have the one-step paired confirmation of C's gain over R0_stayclose
+(`docs/LCB_R2C_OLD_VISIBLE_FAILED_ONLY_CONFIRM.md`: +14/399 visible-failed, p≈0.004). The question here is
+narrower: **does the frozen C config still work once wired into the actual multi-loop SE process, and does
+the visible-failed gain compound across loops (loop0→…→5)?** A and B are **deferred** to a later
+attribution-clean follow-up on the same pinned setup.
 
-**Budget note (important):** if budget is tight, **keep B**. Dropping B and comparing only A vs C
-**confounds the stay-close effect with the feedback effect** — and we already measured stay-close to be
-non-trivial (+4–5pp at loop1). B is the only way to attribute the loop-level gain to *feedback* specifically.
-If something must be cut, cut problems/loops before cutting arm B.
+### Arms
+- **`C_feedback_vfonly`** (THIS pilot) — stay-close + top-level failed-only note + **CHECK-bearing V2-concise feedback only for visible-failed candidates, no block for all_pass** (the frozen config).
+
+### Deferred follow-up (documented for later — do NOT run now)
+- **`A_original_strip_false`** — untouched original `livecodebench-aggregate` (no stay-close, no feedback).
+- **`B_stayclose_only`** — stay-close prompt, no feedback. **Attribution control.**
+- Rationale retained: A-vs-C alone **confounds stay-close with feedback** (stay-close was +4–5pp at loop1),
+  so the clean attribution run must include B. Run A and B on the **same pinned loop-0** as this C pilot when
+  we do the attribution study, so all three are paired.
+
+**Framing:** this C-only run is a **viability/compounding pilot, not an attribution-clean ablation.** Any
+comparison of this pilot to existing original-strip=false / stayclose-only outputs is **non-paired reference
+only** unless subset + seeds + hyperparameters are actually matched (they are not for the old strip=false
+full run) — such comparisons will be **labelled non-paired reference**.
 
 ## Proposed operator: `livecodebench-feedback-aggregate` (additive; original operator untouched)
 A new recombination operator registered alongside `livecodebench-aggregate`. Selected only for arm C via
@@ -131,6 +144,42 @@ to the confirmation runs scaled by loops. Exact wall-clock depends on the confir
 >
 > **Please confirm (or adjust): population / k / groups / loops, the problem subset/size, and update=replace.**
 > I won't start generation until you sign off.
+
+---
+
+## Implementation status (operator built + validated; pilot NOT launched)
+- **Operator:** `external/squeeze-evolve/benchmarks/livecodebench/_feedback_aggregate.py`, registered as
+  `livecodebench-feedback-aggregate` in that dir's `register.py` (**additive**; original
+  `livecodebench-aggregate` untouched). Loop-0 (empty candidates) returns the query verbatim; loop≥1 runs
+  each parent's extracted code against PUBLIC tests (cached + 4-way parallel), emits a CHECK-bearing
+  V2-concise block for visible-failed parents, **no block for all_pass**, with the top-level failed-only
+  note + stay-close. Fully guarded (any error → no-feedback stay-close fallback; the loop never breaks).
+- **Validated:** (1) unit test — lookup hits, correct per-category blocks, all_pass omitted, loop-0 = query;
+  (2) full SE smoke (`configs/squeeze_evolve_feedback_vfonly_smoke.yaml`, 2 problems × pop4 × loops2)
+  completed cleanly with the operator firing in loop 1 and 2 checkpoints written.
+- **Config:** `configs/squeeze_evolve_feedback_vfonly_pilot_node1.yaml` (clone of the formal LCBV6 config,
+  only `recombination: livecodebench-feedback-aggregate` changed). **Seed:** `data/filtered/lcbv6_non_saturated_pilot40.jsonl` (40 mixed problems).
+- **Loop-0:** this C-only pilot runs its **own fresh loop-0** (loop-0 *pinning* is for cross-arm pairing → deferred to the A/B/C attribution follow-up). Any comparison to the old strip=false run is **non-paired reference**.
+
+### Exact launch command (AWAITING CONFIRMATION — do not run until approved)
+```bash
+cd /mnt/cpfs/yangboxue/opsd/TTS/tts-sft
+unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY all_proxy
+export HF_HUB_OFFLINE=1 HF_HOME=/mnt/cpfs/yangboxue/opsd/TTS/hf_cache PYTHONINTMAXSTRDIGITS=0
+export LCB_FB_SEED=$PWD/data/filtered/lcbv6_non_saturated_pilot40.jsonl
+export LCB_FB_PUBLIC=$PWD/data/filtered/lcbv6_public_tests.jsonl
+export LCB_FB_HARNESS=$PWD/scripts/lcb_public_probe_harness.py
+python scripts/run_squeeze_evolve.py \
+  --input data/filtered/lcbv6_non_saturated_pilot40.jsonl \
+  --output outputs/node1_lcb_feedback_se_vfonly_pilot/se.jsonl \
+  --config configs/squeeze_evolve_feedback_vfonly_pilot_node1.yaml \
+  --squeeze-evolve-dir external/squeeze-evolve \
+  --n-problems 40
+```
+**Output directory:** `outputs/node1_lcb_feedback_se_vfonly_pilot/` (→ `se.jsonl`, `se.jsonl.raw.json`,
+`se.jsonl.checkpoints/` per-loop, `metrics.json`). Post-hoc grading (`scripts/score_se_subset.py` +
+`se_loop_candidates.py`) uses hidden tests OFFLINE only. **Rough ETA ~6–10 h** (40×16 groups × 5 loops at
+max_tokens 32768; +cheap cached public-exec). Smoke leftovers are in `outputs/node1_lcb_feedback_se_vfonly_smoke/`.
 
 ---
 

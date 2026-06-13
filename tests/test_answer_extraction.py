@@ -115,3 +115,35 @@ class TestIsExactMatch:
 
     def test_no_pred(self):
         assert is_exact_match(None, "42") is False
+
+
+class TestLatexAwareMatching:
+    """Regression for the Node 1 smoke false-negative and related LaTeX renderings."""
+
+    def test_node1_boxed_tuple_vs_leftright_gold(self):
+        # The exact Node 1 case: model boxed (3, pi/2); gold uses \left( .. \right).
+        pred = extract_final_answer("...so the answer is \\boxed{(3, \\frac{\\pi}{2})}.")
+        assert pred == "(3, \\frac{\\pi}{2})"
+        gold = "\\left( 3, \\frac{\\pi}{2} \\right)"
+        assert is_exact_match(pred, gold) is True
+
+    def test_left_right_stripped(self):
+        assert is_exact_match("(3, \\frac{\\pi}{2})", "\\left(3, \\frac{\\pi}{2}\\right)") is True
+
+    def test_internal_whitespace_ignored(self):
+        assert is_exact_match("( 1 , 2 )", "(1,2)") is True
+
+    def test_latex_thin_space_ignored(self):
+        assert is_exact_match("(1,2)", "(1,\\,2)") is True
+
+    def test_dfrac_folds_to_frac(self):
+        assert is_exact_match("\\dfrac{1}{2}", "\\frac{1}{2}") is True
+
+    def test_different_tuple_still_wrong(self):
+        # Same shape, different value -> must stay a non-match (no over-normalization).
+        assert is_exact_match("(3, \\frac{\\pi}{2})", "\\left( 4, \\frac{\\pi}{2} \\right)") is False
+        assert is_exact_match("(3, \\frac{\\pi}{2})", "\\left( 3, \\frac{\\pi}{3} \\right)") is False
+
+    def test_normalize_contract_unchanged(self):
+        # The gentler normalizer must STILL preserve display spacing (no regression).
+        assert normalize_math_answer("(1, 2)") == "(1, 2)"

@@ -1,0 +1,49 @@
+{
+  "problems": [
+    {
+      "orig_prompt": "Q1: is it 41 or 42?",
+      "gt": "42",
+      "candidates": [
+        "<think>combine; 42 is right</think> \\boxed{42}",
+        "<think>refine again</think> \\boxed{42}"
+      ],
+      "candidate_groups": [
+        ["<think>Actually 42</think> The answer is \\boxed{42}", "<think>I think it is 41</think> The answer is \\boxed{41}"],
+        ["<think>I think it is 41</think> The answer is \\boxed{41}"]
+      ],
+      "routing_details": {
+        "routes": ["model_0", "model_0"],
+        "thresholds": [],
+        "group_fitnesses": [2.0, 1.0],
+        "group_index_members": [[1, 0], [0]],
+        "candidate_confidences": {},
+        "percentiles": []
+      },
+      "question": "Q1: is it 41 or 42?",
+      "options": null
+    },
+    {
+      "orig_prompt": "Q2: pick 7",
+      "gt": "7",
+      "candidates": [
+        "<think>it is 7</think> \\boxed{7}",
+        "<think>no, 3</think> \\boxed{3}"
+      ],
+      "candidate_groups": [
+        ["<think>maybe 1</think> \\boxed{1}", "<think>maybe 2</think> \\boxed{2}"],
+        ["<think>maybe 2</think> \\boxed{2}"]
+      ],
+      "routing_details": {
+        "routes": ["model_0", "model_0"],
+        "thresholds": [],
+        "group_fitnesses": [1.0, 1.0],
+        "group_index_members": [[0, 1], [1]],
+        "candidate_confidences": {},
+        "percentiles": []
+      },
+      "question": "Q2: pick 7",
+      "options": null
+    }
+  ],
+  "metrics": {"loop": 1, "model_0_count": 4, "total_output_tokens": 120, "fitness": "diversity"}
+}

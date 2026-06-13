@@ -1,0 +1,40 @@
+# C-strip arm: EXACT clone of the C pilot config (squeeze_evolve_feedback_vfonly_pilot_node1.yaml)
+# with ONE change: strip_think: true (parents' <think> blocks stripped in recombination prompts).
+# Loop-0 PINNED verbatim from strip=false rerun #1 — same anchor as A/B/C/C2/V for comparability
+# (loop-0 candidates themselves still carry thinking; strip applies to prompt assembly at loops>=1).
+# Feedback = deterministic PUBLIC/sample-test execution on visible-failed candidates only (vfonly).
+run_name: tts_sft_se_feedback_vfonly_strip_node3
+routing:
+  k: 4
+  population: 16
+  groups: 16
+  loops: 5
+  confidence_percentiles: []
+  fitness: diversity
+  selection: uniform
+  selection_temperature: 1.0
+  update: replace
+  lite_fraction: 0.0
+  lite_method: majority
+  recombination: livecodebench-feedback-aggregate
+  evaluation: livecodebench-none
+  task: code
+  generation_batch_size: 48
+  strip_think: true
+  seed: 1234
+models:
+  - name: Qwen/Qwen3-4B-Thinking-2507
+    base_url: http://localhost:8000/v1
+    api_key: EMPTY
+    endpoint: chat
+    max_tokens: 32768
+    temperature: 1.0
+    top_p: 0.95
+    max_concurrency: 48
+    extra_body:
+      top_k: 20
+retry:
+  request_timeout_seconds: 7200
+resume: true   # PINNED loop-0 placed in checkpoint_dir; orchestrator resume-continues from loop 1.
+checkpoint_dir: ./outputs/node3_lcb_feedback_vfonly_strip/checkpoints
+metrics_path: ./outputs/node3_lcb_feedback_vfonly_strip/metrics.json

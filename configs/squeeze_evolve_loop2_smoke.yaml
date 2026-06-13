@@ -1,0 +1,64 @@
+# Squeeze-Evolve LOOP=2 SMOKE config — Node 1 (math self-distillation reachability diagnostic).
+#
+# Separate, self-contained copy of configs/squeeze_evolve_generation.yaml so the
+# default config is NOT modified. Only these differ from the default:
+#   * run_name        -> tts_sft_se_loop2_smoke_node1   (unique; avoids stale checkpoint mixing)
+#   * routing.loops   -> 2
+#   * checkpoint_dir / metrics_path -> ./outputs/node1_se_loop2_smoke/...
+#
+# LOOP INTERPRETATION (confirmed by Harman): "loop 2" == loops=2 as a COUNT.
+# SqueezeEvolve runs range(loops) -> loop_index t = 0 and t = 1:
+#   t=0  initial population generation (no parents)
+#   t=1  one evolution/recombination step
+# Do NOT run loop > 2 now. To continue later, bump `loops` 3 -> 4 -> 5 (never above 5).
+#
+# All OTHER knobs (population/groups/k/fitness/sampling) are the existing DEFAULTS and
+# remain placeholders pending Harman's friend's recommended hyperparameters.
+#
+# This matches the schema enforced by squeeze_evolve.core.config.RunConfig (validated:
+# _discover_benchmarks() + load_run_config() load this file cleanly).
+#
+# Assumes: single model Qwen/Qwen3-4B-Thinking-2507 served on a local vLLM at
+# http://localhost:8000/v1; fitness: diversity -> no prompt_logprobs / vllm fork needed.
+# Override model/endpoint via the wrapper:
+#     python scripts/run_squeeze_evolve.py ... --model X --base-url Y --api-key Z
+
+run_name: tts_sft_se_loop2_smoke_node1
+
+routing:
+  k: 4                              # group size                       (DEFAULT — pending Harman)
+  population: 4                     # candidates per problem at loop 0 (DEFAULT — pending Harman)
+  groups: 4                         # groups per loop                  (DEFAULT — pending Harman)
+  loops: 2                          # COUNT -> loop_index 0 and 1 (Harman: start with loop 2; do NOT exceed 5)
+  confidence_percentiles: []        # N=1 model -> needs 0 thresholds
+  fitness: diversity                # diversity sidesteps prompt_logprobs / scoring_model (no vllm fork)
+  selection: uniform
+  selection_temperature: 1.0
+  update: replace                   # replace each population each loop
+  lite_fraction: 0.0
+  lite_method: majority
+  recombination: aime25-aggregate   # generic math aggregator (benchmarks/aime25/register.py)
+  evaluation: aime25-none           # we evaluate separately with scripts/eval_math.py
+  task: math
+  generation_batch_size: 16
+  strip_think: false                # KEEP <think> blocks — full thinking traces saved every loop
+  seed: 1234
+
+models:                             # cheapest -> most expensive (1 entry = self-distillation)
+  - name: Qwen/Qwen3-4B-Thinking-2507
+    base_url: http://localhost:8000/v1
+    api_key: EMPTY
+    endpoint: chat
+    max_tokens: 8192                 # DEFAULT — pending Harman (context length)
+    temperature: 0.7                 # DEFAULT — pending Harman
+    top_p: 0.95                      # DEFAULT — pending Harman
+    max_concurrency: 16
+
+# No scoring_model needed: single model + fitness=diversity.
+
+retry:
+  request_timeout_seconds: 600
+
+resume: false
+checkpoint_dir: ./outputs/node1_se_loop2_smoke/checkpoints   # per-loop checkpoints (relative to SE clone cwd)
+metrics_path: ./outputs/node1_se_loop2_smoke/metrics.json
